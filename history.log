@@ -106,7 +106,7 @@ for the current-state design and .claude plan history for the full phase plan.
     — added `!history.log`.
   226 tests (up from 220).
 
-2026-09-17 14:33 UTC+7 | (this commit — a commit can't contain its own hash) | Phase 11: Testing — coverage audit + real CI
+2026-09-17 14:33 UTC+7 | e945e1c | Phase 11: Testing — coverage audit + real CI
   - Added @vitest/coverage-v8 + `npm run test:coverage`. Baseline before
     this pass: 89.6% statements / 77.4% branches. Targeted the
     highest-risk gaps first (Fix Engine, git commit engine, GitHub
@@ -129,3 +129,20 @@ for the current-state design and .claude plan history for the full phase plan.
     against other repos. Safe to run unmodified on fork PRs: no secrets
     needed, every SDK/API call in the test suite is mocked.
   262 tests (up from 226).
+
+2026-09-17 14:50 UTC+7 | (this commit — a commit can't contain its own hash) | Phase 7 explicitly deferred
+  Attempted to unblock Phase 7 (Review Quality / Noise Reduction tuning),
+  the one item left from the original plan — its own acceptance criteria
+  requires dogfooding real AI review output against real PRs, which
+  needs a working ANTHROPIC_API_KEY. Checked: none exists anywhere (not
+  as a GitHub secret on this repo, not in the local shell). Offered three
+  ways to unblock it (export a key locally for a fixture-based dry run,
+  configure the GitHub secret + open a real test PR, or defer) — the
+  decision was to defer explicitly rather than proceed on a guess.
+
+  Status as of this entry: every other phase from the original 12-phase
+  plan (0-6, 8-11) is implemented and tested (262 tests, ~96% statement
+  coverage, live-verified CI + a formal security audit with fixes). Phase
+  7 is the one open item, blocked on a real ANTHROPIC_API_KEY becoming
+  available — revisit then, not before, since tuning noise-reduction
+  without real model output would just be guessing.
