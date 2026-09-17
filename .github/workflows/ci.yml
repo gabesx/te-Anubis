@@ -1,0 +1,49 @@
+# Runs TE-Anubis's own test suite, lint, typecheck, and build on every PR/push.
+#
+# Deliberately a plain `pull_request` trigger — this workflow only ever runs
+# `npm ci`/typecheck/lint/test/build against the checked-out PR code, never
+# posts anything back, never needs secrets (the test suite mocks every SDK/
+# API call — see docs/architecture.md and test/README-equivalent comments in
+# the test files themselves: "no live network calls to AI providers or
+# GitHub"). That makes it safe to run unmodified on fork PRs too.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build

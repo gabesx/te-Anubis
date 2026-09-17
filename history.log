@@ -86,7 +86,7 @@ for the current-state design and .claude plan history for the full phase plan.
   220 tests (17 new/updated regression tests for these fixes). npm audit
   unchanged (1 low, unrelated, Windows-dev-server-only).
 
-2026-09-17 14:19 UTC+7 | (this commit — a commit can't contain its own hash) | Phase 9: Observability completeness pass
+2026-09-17 14:19 UTC+7 | d4010eb | Phase 9: Observability completeness pass
   - Added the `--debug` flag documented but not yet built in earlier
     phases: writes raw AI prompt/response pairs to a local
     .anubis-debug/<timestamp>/ directory only (never stdout, never a
@@ -105,3 +105,27 @@ for the current-state design and .claude plan history for the full phase plan.
     was silently excluding the just-created history.log from git tracking
     — added `!history.log`.
   226 tests (up from 220).
+
+2026-09-17 14:33 UTC+7 | (this commit — a commit can't contain its own hash) | Phase 11: Testing — coverage audit + real CI
+  - Added @vitest/coverage-v8 + `npm run test:coverage`. Baseline before
+    this pass: 89.6% statements / 77.4% branches. Targeted the
+    highest-risk gaps first (Fix Engine, git commit engine, GitHub
+    integration), then static analysis / sandbox tool-invocation paths and
+    the skill detector's less-common signal types. After: 95.9%
+    statements / 84.8% branches / 98.0% lines.
+  - New coverage of note: FixEngine's three defensive failure branches
+    (apply-fails, sandbox-fails, commit-fails) — previously only the
+    happy path and pre-apply rejections were tested. git-commit-engine's
+    `pushCommit()` — previously untested (and, per the Phase 10 audit,
+    not yet called from anywhere in production code either) — now has a
+    real test against an actual bare-repo remote, including a genuine
+    non-fast-forward rejection (no mocking). GitHubIntegration's
+    `postExplainComment`/`postPlainComment` — previously entirely
+    untested. `11-report-output.ts` (the review.max_comments enforcement
+    stage) had no dedicated test at all before this pass.
+  - Added .github/workflows/ci.yml: runs typecheck/lint/test/build on
+    every PR to this repo — there was previously no CI at all for
+    TE-Anubis's own code, only the two workflows that run *as* Anubis
+    against other repos. Safe to run unmodified on fork PRs: no secrets
+    needed, every SDK/API call in the test suite is mocked.
+  262 tests (up from 226).

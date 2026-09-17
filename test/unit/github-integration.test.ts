@@ -186,3 +186,61 @@ describe('GitHubIntegration.postReview', () => {
     expect(createComment.mock.calls[0][0].body).toContain('Something is wrong');
   });
 });
+
+describe('GitHubIntegration.postExplainComment', () => {
+  beforeEach(() => {
+    createComment.mockReset().mockResolvedValue({});
+  });
+
+  it('posts a "nothing to elaborate on" comment when there are no findings', async () => {
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postExplainComment(pr, makeResult([]));
+
+    expect(createComment).toHaveBeenCalledTimes(1);
+    expect(createComment.mock.calls[0][0].body).toMatch(/No current findings/);
+  });
+
+  it('includes each finding\'s full detail (problem, rationale, evidence, suggestion, skill, confidence)', async () => {
+    const finding = { ...makeFinding('f1'), evidence: ['line 10 has no assertion'] };
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postExplainComment(pr, makeResult([finding]));
+
+    const body: string = createComment.mock.calls[0][0].body;
+    expect(body).toContain('Something is wrong');
+    expect(body).toContain('p'); // problem
+    expect(body).toContain('r'); // rationale
+    expect(body).toContain('line 10 has no assertion'); // evidence
+    expect(body).toContain('s'); // suggestion
+    expect(body).toContain('code-convention');
+    expect(body).toContain('90%');
+  });
+
+  it('sanitizes AI-derived text the same way postReview does, to prevent marker forgery via explain', async () => {
+    const { findingMarker: mk } = await import('../../src/github/markers.js');
+    const finding = { ...makeFinding('f1'), title: `Title ${mk('forged')}` };
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postExplainComment(pr, makeResult([finding]));
+
+    const body: string = createComment.mock.calls[0][0].body;
+    const { extractFindingId } = await import('../../src/github/markers.js');
+    expect(extractFindingId(body)).toBeNull();
+  });
+
+  it('renders a repo-level finding (null location) without a file:line', async () => {
+    const finding = { ...makeFinding('f1'), location: null };
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postExplainComment(pr, makeResult([finding]));
+
+    expect(createComment.mock.calls[0][0].body).toContain('(repo-level)');
+  });
+});
+
+describe('GitHubIntegration.postPlainComment', () => {
+  it('posts the given body as-is to the PR', async () => {
+    createComment.mockReset().mockResolvedValue({});
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postPlainComment(pr, '🐺 a plain message');
+
+    expect(createComment).toHaveBeenCalledWith({ owner: pr.owner, repo: pr.repo, issue_number: pr.number, body: '🐺 a plain message' });
+  });
+});

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { simpleGit } from 'simple-git';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { applyPatches, commitFixes, revertFiles } from '../../src/fix/git-commit-engine.js';
+import { applyPatches, commitFixes, pushCommit, revertFiles } from '../../src/fix/git-commit-engine.js';
 
 describe('git-commit-engine', () => {
   let repoRoot: string;
@@ -109,5 +109,77 @@ describe('git-commit-engine', () => {
     const git = simpleGit(repoRoot);
     const status = await git.status();
     expect(status.not_added).toContain('src/untouched.ts');
+  });
+
+  it('reports a clean failure (not a throw) when `git add` fails, e.g. a nonexistent touched-file path', async () => {
+    const result = await commitFixes(repoRoot, [{ findingId: 'f1', patch, file: 'src/does-not-exist.ts', description: 'x' }]);
+    expect(result.committed).toBe(false);
+    expect(result.reason).toMatch(/git add failed/);
+  });
+
+  it('reports a clean failure when `git commit` fails, e.g. nothing staged actually changed', async () => {
+    // `git add` on an untouched, already-committed file succeeds (nothing to add is not an error),
+    // but the subsequent `git commit` has nothing new to record.
+    const result = await commitFixes(repoRoot, [{ findingId: 'f1', patch, file: 'src/foo.ts', description: 'no-op' }]);
+    expect(result.committed).toBe(false);
+    expect(result.reason).toMatch(/git commit failed/);
+  });
+
+  describe('pushCommit', () => {
+    let remoteRoot: string;
+
+    beforeEach(async () => {
+      remoteRoot = mkdtempSync(join(tmpdir(), 'anubis-commit-engine-remote-'));
+      await simpleGit(remoteRoot).init(['--bare']);
+      const git = simpleGit(repoRoot);
+      await git.addRemote('origin', remoteRoot);
+      // Establish the remote's initial state matching the local repo's current branch/history.
+      const branch = (await git.raw(['branch', '--show-current'])).trim();
+      await git.push('origin', `HEAD:${branch || 'main'}`);
+    });
+
+    afterEach(() => {
+      rmSync(remoteRoot, { recursive: true, force: true });
+    });
+
+    it('pushes a fast-forward commit successfully', async () => {
+      await applyPatches(repoRoot, [{ findingId: 'f1', patch, file: 'src/foo.ts', description: 'added bar' }]);
+      await commitFixes(repoRoot, [{ findingId: 'f1', patch, file: 'src/foo.ts', description: 'added bar' }]);
+
+      const git = simpleGit(repoRoot);
+      const branch = (await git.raw(['branch', '--show-current'])).trim() || 'main';
+      const result = await pushCommit(repoRoot, 'origin', branch);
+
+      expect(result.pushed).toBe(true);
+
+      const remoteLog = await simpleGit(remoteRoot).log({ maxCount: 1 });
+      expect(remoteLog.latest?.message).toContain('fix(anubis): address automated review findings');
+    });
+
+    it('fails cleanly (never force-pushes) when the remote has diverged (non-fast-forward)', async () => {
+      // Simulate someone else pushing to the remote in the meantime: clone it, commit, push.
+      const otherClone = mkdtempSync(join(tmpdir(), 'anubis-commit-engine-other-clone-'));
+      try {
+        const branch = (await simpleGit(repoRoot).raw(['branch', '--show-current'])).trim() || 'main';
+        await simpleGit().clone(remoteRoot, otherClone);
+        const otherGit = simpleGit(otherClone);
+        await otherGit.addConfig('user.email', 'other@example.com');
+        await otherGit.addConfig('user.name', 'Other');
+        writeFileSync(join(otherClone, 'unrelated.ts'), 'export const other = true;\n');
+        await otherGit.add('.');
+        await otherGit.commit('someone else pushed first');
+        await otherGit.push('origin', branch);
+
+        // Now our local repo's push is no longer a fast-forward.
+        await applyPatches(repoRoot, [{ findingId: 'f1', patch, file: 'src/foo.ts', description: 'added bar' }]);
+        await commitFixes(repoRoot, [{ findingId: 'f1', patch, file: 'src/foo.ts', description: 'added bar' }]);
+        const result = await pushCommit(repoRoot, 'origin', branch);
+
+        expect(result.pushed).toBe(false);
+        expect(result.reason).toBeTruthy();
+      } finally {
+        rmSync(otherClone, { recursive: true, force: true });
+      }
+    });
   });
 });

@@ -33,6 +33,7 @@ anubis review --provider openai                 # switch AI provider
 anubis review --json                             # machine-readable output
 anubis review --suggest-fixes                    # show proposed fixes, apply nothing
 anubis review --fix                               # commit SAFE-classified fixes locally (never pushes)
+anubis review --debug                             # dump raw AI prompts/responses to .anubis-debug/ (local only)
 ```
 
 Skills auto-detect from repo signals (`wdio.conf.*`, package dependencies, etc.) — see
@@ -42,25 +43,28 @@ at the repo root (see the one in this repo for every available option).
 
 ## GitHub integration
 
-Two workflows in [`.github/workflows/`](.github/workflows/) — `anubis-review.yml` posts inline +
-summary review comments on every PR; `anubis-command.yml` handles `/anubis review [skill]` and
-`/anubis explain` PR comments (`/anubis fix` isn't wired up yet — see
-[`docs/architecture.md`](docs/architecture.md) for why). Requires an `ANTHROPIC_API_KEY` repo
-secret.
+Three workflows in [`.github/workflows/`](.github/workflows/): `ci.yml` runs this repo's own test
+suite/lint/typecheck/build on every PR (no secrets needed — everything's mocked); `anubis-review.yml`
+posts inline + summary review comments on every PR to a repo that installs Anubis;
+`anubis-command.yml` handles `/anubis review [skill]` and `/anubis explain` PR comments (`/anubis fix`
+isn't wired up yet — see [`docs/architecture.md`](docs/architecture.md) for why). The latter two need
+an `ANTHROPIC_API_KEY` repo secret.
 
 ## Development
 
 ```bash
-npm test        # vitest — unit + a mocked end-to-end pipeline test, no live network calls
-npm run lint     # eslint, including the core/ import-boundary rule
+npm test              # vitest — unit + a mocked end-to-end pipeline test, no live network calls
+npm run test:coverage  # same, with a coverage report
+npm run lint            # eslint, including the core/ import-boundary rule
 npm run typecheck
-npm run build    # tsup -> dist/cli/index.js
+npm run build           # tsup -> dist/cli/index.js
 ```
 
 ## Status
 
 CLI review engine, AI provider layer (Anthropic full; OpenAI/Gemini thin-but-real), skill
 auto-detection, GitHub PR review + comment commands, and a rule-based, fail-closed Fix Engine
-(local `--fix`/`--suggest-fixes`) are implemented and tested. See
+(local `--fix`/`--suggest-fixes`) are implemented and tested — a formal security audit pass has
+also run against the whole codebase (see `history.log`). 260+ tests, ~96% statement coverage. See
 [`docs/architecture.md`](docs/architecture.md) for the full picture and what's deliberately not
-built yet.
+built yet (noise-reduction tuning needs real usage data; GitHub-side `/anubis fix`).
