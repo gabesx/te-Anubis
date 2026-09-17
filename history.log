@@ -130,7 +130,7 @@ for the current-state design and .claude plan history for the full phase plan.
     needed, every SDK/API call in the test suite is mocked.
   262 tests (up from 226).
 
-2026-09-17 14:50 UTC+7 | (this commit — a commit can't contain its own hash) | Phase 7 explicitly deferred
+2026-09-17 14:50 UTC+7 | 4550ab3 | Phase 7 explicitly deferred
   Attempted to unblock Phase 7 (Review Quality / Noise Reduction tuning),
   the one item left from the original plan — its own acceptance criteria
   requires dogfooding real AI review output against real PRs, which
