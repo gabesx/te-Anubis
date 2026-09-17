@@ -38,6 +38,37 @@ describe('parseFindings', () => {
     expect(findings[0]?.id).toBeTruthy();
   });
 
+  it('carries a proposed patch through as suggestedDiff when present', () => {
+    const response = JSON.stringify({
+      findings: [
+        {
+          severity: 'HIGH',
+          category: 'missing-validation',
+          title: 'Missing assertion',
+          problem: 'p',
+          rationale: 'r',
+          suggestion: 's',
+          confidence: 0.9,
+          line: 4,
+          skillId: 'code-convention',
+          patch: '--- a/foo.ts\n+++ b/foo.ts\n@@ -1,1 +1,2 @@\n a\n+b\n',
+        },
+      ],
+    });
+    const findings = parseFindings(response, { filePath: 'foo.ts', allowedSkills });
+    expect(findings[0]?.suggestedDiff).toContain('+b');
+  });
+
+  it('leaves suggestedDiff undefined when no patch is proposed', () => {
+    const response = JSON.stringify({
+      findings: [
+        { severity: 'LOW', category: 'x', title: 't', problem: 'p', rationale: 'r', confidence: 0.9, line: 1, skillId: 'code-convention' },
+      ],
+    });
+    const findings = parseFindings(response, { filePath: 'foo.ts', allowedSkills });
+    expect(findings[0]?.suggestedDiff).toBeUndefined();
+  });
+
   it('strips a markdown code fence around the JSON', () => {
     const response = '```json\n{"findings":[]}\n```';
     expect(parseFindings(response, { filePath: 'foo.ts', allowedSkills })).toEqual([]);

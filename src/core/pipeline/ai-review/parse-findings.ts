@@ -15,6 +15,11 @@ const AIFindingSchema = z.object({
   line: z.number().int().positive().nullable().optional(),
   evidence: z.array(z.string()).optional(),
   skillId: z.string().min(1),
+  /** A unified diff, only when the model judges this specific finding mechanically fixable
+   * (e.g. adding a missing assertion, removing an unused import) — omitted otherwise. This is
+   * a proposal only: the Fix Engine's rule-based PatchValidator/SafetyClassifier are the actual
+   * gate on whether it's ever applied, never this field's mere presence. */
+  patch: z.string().nullable().optional(),
 });
 
 const AIResponseSchema = z.object({
@@ -65,6 +70,7 @@ export function parseFindings(responseText: string, options: ParseFindingsOption
         problem: f.problem,
         rationale: f.rationale,
         suggestion: f.suggestion ?? undefined,
+        suggestedDiff: f.patch ?? undefined,
         confidence: f.confidence,
         skillId: f.skillId,
         evidence: f.evidence,

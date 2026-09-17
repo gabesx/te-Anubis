@@ -17,6 +17,8 @@ program
   .option('--skill <id>', 'enable a specific skill (repeatable)', (value: string, previous: string[]) => [...previous, value], [] as string[])
   .option('--config <path>', 'path to .anubis.yml')
   .option('--json', 'output as JSON instead of a human-readable report')
+  .option('--fix', 'commit SAFE-classified fixes locally (never pushes; see docs/architecture.md)')
+  .option('--suggest-fixes', 'show proposed fixes without applying or committing any of them')
   .action(async (opts) => {
     try {
       await runReviewCommand({
@@ -27,6 +29,8 @@ program
         skill: opts.skill,
         config: opts.config,
         json: opts.json,
+        fix: opts.fix,
+        suggestFixes: opts.suggestFixes,
       });
     } catch (err) {
       console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
