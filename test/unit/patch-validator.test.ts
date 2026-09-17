@@ -70,6 +70,13 @@ describe('validatePatch', () => {
     expect(result.reason).toMatch(/denylisted/);
   });
 
+  it('rejects a patch that creates a symlink, regardless of where it points', async () => {
+    const patch = `diff --git a/new-link b/new-link\nnew file mode 120000\nindex 0000000..abc1234\n--- /dev/null\n+++ b/new-link\n@@ -0,0 +1 @@\n+/etc/passwd\n\\ No newline at end of file\n`;
+    const result = await validatePatch(repoRoot, patch, 'new-link');
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/symlink/);
+  });
+
   it('rejects a patch whose resolved target escapes the repo root via a symlink', async () => {
     const outsideDir = mkdtempSync(join(tmpdir(), 'anubis-outside-'));
     writeFileSync(join(outsideDir, 'secret.ts'), 'export const secret = 1;\n');

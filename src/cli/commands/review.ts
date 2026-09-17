@@ -3,6 +3,7 @@ import { cliReporter } from '../../core/reporting/cli-reporter.js';
 import { formatFixResult } from '../../core/reporting/fix-reporter.js';
 import { jsonReporter } from '../../core/reporting/json-reporter.js';
 import { FixEngine } from '../../fix/fix-engine.js';
+import { redact } from '../../utils/logger.js';
 import { runReviewPipeline } from './run-review-pipeline.js';
 
 export interface ReviewCommandOptions {
@@ -45,7 +46,7 @@ export async function runReviewCommand(options: ReviewCommandOptions): Promise<v
 
     if (!options.json) {
       const findingsById = new Map(result.findings.map((f) => [f.id, f]));
-      console.log(formatFixResult(fixResult, findingsById));
+      console.log(redact(formatFixResult(fixResult, findingsById)));
     }
   }
 }

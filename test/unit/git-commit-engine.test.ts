@@ -85,6 +85,22 @@ describe('git-commit-engine', () => {
     expect(readFileSync(join(repoRoot, 'src', 'foo.ts'), 'utf-8')).not.toContain('function bar()');
   });
 
+  it('stages a hyphen-prefixed filename correctly instead of it being misread as a git flag', async () => {
+    const weirdName = '-weird-name.ts';
+    writeFileSync(join(repoRoot, weirdName), 'export const a = 1;\n');
+    const git = simpleGit(repoRoot);
+    await git.add('.');
+    await git.commit('add weird file');
+
+    const weirdPatch = `--- a/${weirdName}\n+++ b/${weirdName}\n@@ -1,1 +1,2 @@\n export const a = 1;\n+export const b = 2;\n`;
+    await applyPatches(repoRoot, [{ findingId: 'f1', patch: weirdPatch, file: weirdName, description: 'added b' }]);
+    const result = await commitFixes(repoRoot, [{ findingId: 'f1', patch: weirdPatch, file: weirdName, description: 'added b' }]);
+
+    expect(result.committed).toBe(true);
+    const status = await git.status();
+    expect(status.files).toEqual([]);
+  });
+
   it('stages only the touched files, not everything in the working tree', async () => {
     writeFileSync(join(repoRoot, 'src', 'untouched.ts'), 'export const untouched = true;\n');
     await applyPatches(repoRoot, [{ findingId: 'f1', patch, file: 'src/foo.ts', description: 'added bar' }]);

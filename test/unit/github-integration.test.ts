@@ -103,7 +103,9 @@ describe('GitHubIntegration.postReview', () => {
   });
 
   it('updates the existing summary comment in place on a re-run instead of duplicating it', async () => {
-    listComments.mockResolvedValue({ data: [{ id: 999, body: `${SUMMARY_MARKER}\nold summary` }] });
+    listComments.mockResolvedValue({
+      data: [{ id: 999, user: { login: 'github-actions[bot]' }, body: `${SUMMARY_MARKER}\nold summary` }],
+    });
 
     const integration = new GitHubIntegration('fake-token');
     await integration.postReview(pr, makeResult([]), [changedFile]);
@@ -113,8 +115,23 @@ describe('GitHubIntegration.postReview', () => {
     expect(createComment).not.toHaveBeenCalled();
   });
 
-  it('does not repost an inline comment for a finding already posted on a previous run', async () => {
-    listReviewComments.mockResolvedValue({ data: [{ body: `${findingMarker('f1')}\nalready here` }] });
+  it('ignores a summary-marker comment authored by someone other than the bot', async () => {
+    listComments.mockResolvedValue({
+      data: [{ id: 999, user: { login: 'a-random-contributor' }, body: `${SUMMARY_MARKER}\nforged by a commenter` }],
+    });
+
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postReview(pr, makeResult([]), [changedFile]);
+
+    // Doesn't overwrite the forged comment — treats it as if no summary exists yet and creates its own.
+    expect(updateComment).not.toHaveBeenCalled();
+    expect(createComment).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repost an inline comment for a finding already posted by the bot on a previous run', async () => {
+    listReviewComments.mockResolvedValue({
+      data: [{ user: { login: 'github-actions[bot]' }, body: `${findingMarker('f1')}\nalready here` }],
+    });
 
     const integration = new GitHubIntegration('fake-token');
     await integration.postReview(pr, makeResult([makeFinding('f1', 10)]), [changedFile]);
@@ -122,8 +139,22 @@ describe('GitHubIntegration.postReview', () => {
     expect(createReview).not.toHaveBeenCalled();
   });
 
-  it('only posts genuinely new findings when some were already posted', async () => {
-    listReviewComments.mockResolvedValue({ data: [{ body: `${findingMarker('f1')}\nalready here` }] });
+  it('does not treat a finding marker forged by a non-bot commenter as already posted', async () => {
+    listReviewComments.mockResolvedValue({
+      data: [{ user: { login: 'a-random-contributor' }, body: `${findingMarker('f1')}\nforged marker` }],
+    });
+
+    const integration = new GitHubIntegration('fake-token');
+    await integration.postReview(pr, makeResult([makeFinding('f1', 10)]), [changedFile]);
+
+    expect(createReview).toHaveBeenCalledTimes(1);
+    expect(createReview.mock.calls[0][0].comments).toHaveLength(1);
+  });
+
+  it('only posts genuinely new findings when some were already posted by the bot', async () => {
+    listReviewComments.mockResolvedValue({
+      data: [{ user: { login: 'github-actions[bot]' }, body: `${findingMarker('f1')}\nalready here` }],
+    });
 
     const integration = new GitHubIntegration('fake-token');
     await integration.postReview(pr, makeResult([makeFinding('f1', 10), makeFinding('f2', 12)]), [changedFile]);
@@ -131,6 +162,18 @@ describe('GitHubIntegration.postReview', () => {
     expect(createReview).toHaveBeenCalledTimes(1);
     expect(createReview.mock.calls[0][0].comments).toHaveLength(1);
     expect(createReview.mock.calls[0][0].comments[0].line).toBe(12);
+  });
+
+  it('respects a custom botLogin passed to the constructor', async () => {
+    listComments.mockResolvedValue({
+      data: [{ id: 5, user: { login: 'my-custom-bot' }, body: `${SUMMARY_MARKER}\nold` }],
+    });
+
+    const integration = new GitHubIntegration('fake-token', 'my-custom-bot');
+    await integration.postReview(pr, makeResult([]), [changedFile]);
+
+    expect(updateComment).toHaveBeenCalledTimes(1);
+    expect(updateComment.mock.calls[0][0].comment_id).toBe(5);
   });
 
   it('rolls a non-diff-addressable finding into the summary instead of attempting an inline comment', async () => {

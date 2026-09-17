@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -35,5 +35,24 @@ describe('runSandboxChecks', () => {
     return runSandboxChecks(repoRoot, ['src/foo.ts']).then((result) => {
       expect(result.checks.find((c) => c.tool === 'tests')).toBeUndefined();
     });
+  });
+
+  it('invokes eslint with a `--` separator before touched-file paths (argument-injection guard)', async () => {
+    const argvLogPath = join(repoRoot, 'argv.json');
+    mkdirSync(join(repoRoot, 'node_modules', '.bin'), { recursive: true });
+    const stubPath = join(repoRoot, 'node_modules', '.bin', 'eslint');
+    writeFileSync(
+      stubPath,
+      `#!/usr/bin/env node\nrequire('fs').writeFileSync(${JSON.stringify(argvLogPath)}, JSON.stringify(process.argv.slice(2)));\n`,
+    );
+    chmodSync(stubPath, 0o755);
+
+    const maliciousPath = '--rulesdir=whatever.js';
+    await runSandboxChecks(repoRoot, [maliciousPath]);
+
+    const argv = JSON.parse(readFileSync(argvLogPath, 'utf-8')) as string[];
+    const separatorIndex = argv.indexOf('--');
+    expect(separatorIndex).toBeGreaterThanOrEqual(0);
+    expect(argv.slice(separatorIndex + 1)).toContain(maliciousPath);
   });
 });

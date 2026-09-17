@@ -6,7 +6,8 @@ import type { ToolCheckResult } from '../core/types/review-result.js';
 async function runEslintCheck(repoRoot: string, touchedFiles: string[]): Promise<ToolCheckResult | undefined> {
   const eslintBin = join(repoRoot, 'node_modules', '.bin', 'eslint');
   if (!existsSync(eslintBin)) return undefined;
-  const result = await run(eslintBin, touchedFiles, { cwd: repoRoot, timeoutMs: 60_000 });
+  // `--` stops eslint's own arg parser from treating a touched-file path as a flag.
+  const result = await run(eslintBin, ['--', ...touchedFiles], { cwd: repoRoot, timeoutMs: 60_000 });
   return { tool: 'eslint', passed: result.exitCode === 0, summary: result.exitCode === 0 ? 'no lint errors' : 'lint errors found' };
 }
 

@@ -30,7 +30,7 @@ export async function runGithubCommandCommand(): Promise<void> {
     return; // a comment on a plain issue, not a PR — nothing for Anubis to do
   }
 
-  const integration = new GitHubIntegration(token);
+  const integration = new GitHubIntegration(token, process.env.ANUBIS_BOT_LOGIN);
   const command = integration.parseCommand(payload.comment.body);
   if (!command) {
     return; // doesn't match the strict /anubis <command> grammar — not addressed to us

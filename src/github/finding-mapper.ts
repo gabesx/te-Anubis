@@ -1,6 +1,6 @@
 import type { ChangedFile } from '../core/types/context.js';
 import type { Finding } from '../core/types/finding.js';
-import { findingMarker } from './markers.js';
+import { findingMarker, sanitizeAiText } from './markers.js';
 
 function isDiffAddressable(finding: Finding, changedFilesByPath: Map<string, ChangedFile>): boolean {
   if (!finding.location) return false;
@@ -28,14 +28,14 @@ export function partitionFindings(findings: Finding[], changedFiles: ChangedFile
 export function formatInlineCommentBody(finding: Finding): string {
   const lines = [
     findingMarker(finding.id),
-    `**[${finding.severity}] ${finding.title}**`,
+    `**[${finding.severity}] ${sanitizeAiText(finding.title)}**`,
     '',
-    finding.problem,
+    sanitizeAiText(finding.problem),
     '',
-    `_Why it matters:_ ${finding.rationale}`,
+    `_Why it matters:_ ${sanitizeAiText(finding.rationale)}`,
   ];
   if (finding.suggestion) {
-    lines.push('', `**Suggested fix:** ${finding.suggestion}`);
+    lines.push('', `**Suggested fix:** ${sanitizeAiText(finding.suggestion)}`);
   }
   lines.push('', `<sub>Skill: \`${finding.skillId}\` · Confidence: ${Math.round(finding.confidence * 100)}%</sub>`);
   return lines.join('\n');

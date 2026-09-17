@@ -57,6 +57,17 @@ const BEHAVIORAL_CHANGE_PATCH = `--- a/src/foo.ts
  }
 `;
 
+const REORDER_PATCH = `--- a/src/foo.ts
++++ b/src/foo.ts
+@@ -1,4 +1,4 @@
+ export function foo() {
+-  a();
+-  b();
++  b();
++  a();
+ }
+`;
+
 const MULTI_FILE_PATCH = `--- a/src/foo.ts
 +++ b/src/foo.ts
 @@ -1,1 +1,1 @@
@@ -83,6 +94,11 @@ describe('classifyFixSafety', () => {
   it('classifies an assertion-addition-only patch as SAFE', () => {
     const result = classifyFixSafety(makeFinding(), ASSERTION_ADDITION_PATCH);
     expect(result.class).toBe('SAFE');
+  });
+
+  it('does NOT classify a statement-reordering diff as whitespace-only SAFE (a reorder can be a real behavioral change)', () => {
+    const result = classifyFixSafety(makeFinding(), REORDER_PATCH);
+    expect(result.class).not.toBe('SAFE');
   });
 
   it('classifies a behavioral (control-flow) change as REVIEW_REQUIRED (fail-closed default)', () => {

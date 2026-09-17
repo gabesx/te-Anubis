@@ -36,7 +36,10 @@ async function runEslint(repoRoot: string, changedFiles: ChangedFile[]): Promise
     return { result: { tool: 'eslint', passed: true, summary: 'no lintable files changed' }, issues: [] };
   }
 
-  const exec = await run(eslintBin, ['--format', 'json', ...lintableFiles], { cwd: repoRoot, timeoutMs: 60_000 });
+  // `--` stops eslint's own arg parser from treating a changed-file path as a flag — file paths
+  // come from the diff (attacker-influenced on an untrusted PR), e.g. a file literally named
+  // "--rulesdir=..." must be read as a filename, never as an eslint option.
+  const exec = await run(eslintBin, ['--format', 'json', '--', ...lintableFiles], { cwd: repoRoot, timeoutMs: 60_000 });
 
   let parsed: EslintFileResult[];
   try {

@@ -2,6 +2,15 @@ import { Command } from 'commander';
 import { runGithubCommandCommand } from './commands/github-command.js';
 import { runGithubReviewCommand } from './commands/github-review.js';
 import { runReviewCommand } from './commands/review.js';
+import { redact } from '../utils/logger.js';
+
+/** Every top-level error path goes through this — redact() is the one thing that must never
+ * be skipped, since an error can easily echo back a bad API key or a subprocess's stderr. */
+function printError(err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[anubis] error: ${redact(message)}`);
+  process.exitCode = 1;
+}
 
 const program = new Command();
 
@@ -33,8 +42,7 @@ program
         suggestFixes: opts.suggestFixes,
       });
     } catch (err) {
-      console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
-      process.exitCode = 1;
+      printError(err);
     }
   });
 
@@ -45,8 +53,7 @@ program
     try {
       await runGithubReviewCommand();
     } catch (err) {
-      console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
-      process.exitCode = 1;
+      printError(err);
     }
   });
 
@@ -57,8 +64,7 @@ program
     try {
       await runGithubCommandCommand();
     } catch (err) {
-      console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
-      process.exitCode = 1;
+      printError(err);
     }
   });
 

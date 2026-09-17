@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import parseDiff from 'parse-diff';
 import { run } from '../utils/exec.js';
+import { matchesSecurityDenylist } from './denylist.js';
 
 export interface PatchValidationResult {
   valid: boolean;
@@ -10,24 +11,27 @@ export interface PatchValidationResult {
   touchedFiles: string[];
 }
 
-/** Independent of SafetyClassifier's own denylist — defense in depth: even if the
- * classifier were ever bypassed, a patch touching one of these can never be applied. */
-const DENYLISTED_PATH_PATTERNS = [
-  /(^|\/)\.env(\..*)?$/,
-  /\.(pem|key|crt|p12|pfx)$/,
-  /(^|\/)secrets?\//i,
-  /(^|\/)\.github\/workflows\//,
-  /(^|\/)\.git\//,
-];
+const SYMLINK_GIT_MODE = '120000';
 
-function extractTouchedPaths(patch: string): string[] {
-  const files = parseDiff(patch);
+function parsePatch(patch: string): parseDiff.File[] {
+  return parseDiff(patch);
+}
+
+function extractTouchedPaths(files: parseDiff.File[]): string[] {
   const paths = new Set<string>();
   for (const file of files) {
     if (file.to && file.to !== '/dev/null') paths.add(file.to);
     else if (file.from && file.from !== '/dev/null') paths.add(file.from);
   }
   return [...paths];
+}
+
+/** A symlink-mode entry (`120000`) has "content" that's actually a target path, not the file's
+ * real contents — PatchValidator's own realpath-based escape check only covers paths that
+ * already exist on disk, so a patch that *creates* a symlink pointing outside the repo would
+ * otherwise slip past it. Rejected outright regardless of what the diff's shape looks like. */
+function hasSymlinkMode(files: parseDiff.File[]): boolean {
+  return files.some((f) => f.newMode === SYMLINK_GIT_MODE || f.oldMode === SYMLINK_GIT_MODE);
 }
 
 /** Resolves + realpath-checks against the repo root — rejects `..`/absolute paths outright
@@ -49,10 +53,23 @@ function resolvesInsideRepo(repoRoot: string, relativePath: string): boolean {
 /**
  * Structural validation only — no judgment about whether the *change* is a
  * good idea (that's SafetyClassifier's job). This purely answers: is it safe
- * to apply this patch at all.
+ * to apply this patch at all. Independent of SafetyClassifier's own denylist
+ * check (both import the same `matchesSecurityDenylist`, but this runs
+ * regardless of classification) — defense in depth, not a duplicate no-op.
  */
 export async function validatePatch(repoRoot: string, patch: string, expectedFile: string): Promise<PatchValidationResult> {
-  const touchedFiles = extractTouchedPaths(patch);
+  let parsedFiles: parseDiff.File[];
+  try {
+    parsedFiles = parsePatch(patch);
+  } catch {
+    return { valid: false, reason: 'patch could not be parsed as a unified diff', touchedFiles: [] };
+  }
+
+  if (hasSymlinkMode(parsedFiles)) {
+    return { valid: false, reason: 'patch creates or modifies a symlink — never applied automatically', touchedFiles: extractTouchedPaths(parsedFiles) };
+  }
+
+  const touchedFiles = extractTouchedPaths(parsedFiles);
 
   if (touchedFiles.length === 0) {
     return { valid: false, reason: 'patch touches no files', touchedFiles };
@@ -69,8 +86,8 @@ export async function validatePatch(repoRoot: string, patch: string, expectedFil
     if (!resolvesInsideRepo(repoRoot, path)) {
       return { valid: false, reason: `path "${path}" resolves outside the repository root`, touchedFiles };
     }
-    if (DENYLISTED_PATH_PATTERNS.some((p) => p.test(path))) {
-      return { valid: false, reason: `path "${path}" matches a denylisted pattern (secrets/keys/CI config)`, touchedFiles };
+    if (matchesSecurityDenylist(path)) {
+      return { valid: false, reason: `path "${path}" matches a denylisted pattern (secrets/keys/CI config/auth/payment)`, touchedFiles };
     }
   }
 

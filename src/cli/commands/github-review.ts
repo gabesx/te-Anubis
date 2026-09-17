@@ -17,7 +17,7 @@ export async function runGithubReviewCommand(): Promise<void> {
   const token = requireGithubToken();
   const payload = readEventPayload<PullRequestEventPayload>();
   const pr = pullRequestRefFromEvent(payload);
-  const integration = new GitHubIntegration(token);
+  const integration = new GitHubIntegration(token, process.env.ANUBIS_BOT_LOGIN);
 
   if (pr.isFork) {
     logger.info('Reviewing a fork PR — read-only review only, no write-back capability in this job context.');

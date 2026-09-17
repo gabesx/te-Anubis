@@ -83,7 +83,18 @@ collaborator permission on every invocation, never cached, never trusted from th
 
 Idempotency: inline comments are matched by an embedded `<!-- anubis:finding:<id> --> ` marker
 (a re-run never reposts one already there); the summary comment is found by its own marker and
-updated in place.
+updated in place. Both markers are public, hardcoded strings — anyone who can comment on the PR
+could post one themselves, so every marker scan is filtered to comments authored by the bot's own
+login (`GitHubIntegration`'s `botLogin`, defaulting to `github-actions[bot]`) before trusting a
+match; otherwise any commenter could forge the summary marker to overwrite the bot's own comment,
+or forge a finding marker to permanently suppress a specific finding. (`botLogin` is *not* looked
+up dynamically via `GET /user` — that endpoint requires user-to-server auth and rejects the
+`GITHUB_TOKEN` App-installation token this runs with; pass an explicit login if using a custom
+bot/PAT identity instead.) Separately, every AI-derived string embedded in a comment body
+(`finding.title`/`problem`/`rationale`/`suggestion`/`evidence`) is passed through
+`sanitizeAiText` first, which neutralizes marker-shaped syntax and caps length — this closes the
+gap where a successful prompt injection could otherwise get the model to emit marker syntax
+inside an otherwise-legitimate, bot-authored comment.
 
 ## Fix Engine (`src/fix/`)
 
@@ -103,16 +114,22 @@ finding.suggestedDiff present?
 
 Safety classification (`safety-classifier.ts`) only recognizes three narrow, verifiable diff
 shapes as SAFE-eligible: whitespace-only, unused-import-removal-only, and assertion-addition-only.
-Everything else fails closed to `REVIEW_REQUIRED` — there is no generic "looks simple enough"
-fallback. A file path denylist (secrets, keys, CI workflows, auth/payment/billing paths) forces
-`UNSAFE` regardless of diff shape. Confidence below 0.85 and diffs over 30 changed lines both
-downgrade an otherwise-SAFE-shaped patch to `REVIEW_REQUIRED`.
+The whitespace-only check compares added/removed lines *positionally*, not as a sorted set — a
+statement-reorder (e.g. swapping two lines, which can be a real behavioral change) is deliberately
+not treated as "the same lines, therefore safe." Everything else fails closed to
+`REVIEW_REQUIRED` — there is no generic "looks simple enough" fallback. A file path denylist
+(secrets, keys, CI workflows, auth/payment/billing/crypto paths — `denylist.ts`) forces `UNSAFE`
+regardless of diff shape. Confidence below 0.85 and diffs over 30 changed lines both downgrade an
+otherwise-SAFE-shaped patch to `REVIEW_REQUIRED`.
 
 `patch-validator.ts` is a second, independent structural gate (defense in depth, not trusting the
-classifier's own math): resolves every touched path against the repo root with `realpath`-based
-symlink-escape detection, rejects anything outside the repo or matching its own denylist, and
-confirms the patch is scoped to exactly the finding's own file and applies cleanly via
-`git apply --check`.
+classifier's own math) — both import the *same* `denylist.ts` rather than hand-maintaining
+separate copies (which had drifted apart before an audit caught it). It resolves every touched
+path against the repo root with `realpath`-based symlink-escape detection, rejects a patch that
+creates or modifies a symlink outright (a not-yet-existing path can't be realpath-checked, so a
+symlink-mode diff is refused regardless of shape), rejects anything outside the repo or matching
+the denylist, and confirms the patch is scoped to exactly the finding's own file and applies
+cleanly via `git apply --check`.
 
 `git-commit-engine.ts` never uses `--force`, never rewrites history (always a new commit on top of
 HEAD), stages only the touched files (never `git add -A`), and **never pushes** — `commit.pushed`
@@ -127,6 +144,19 @@ today.
 ## Observability
 
 `RunMetrics` (run id, tokens, cost, findings generated/rejected/final, per-stage durations) is
-threaded through every stage. `utils/logger.ts` redacts known secret patterns and configured env
-var values from every log line before it's written — this is the one shared implementation, so
-it can't be forgotten at a new call site.
+threaded through every stage. `utils/logger.ts`'s `redact()` strips known secret patterns and
+configured env var values before text reaches a sink — applied not just to `logger.*` calls but
+to every top-level CLI output path (`cli/index.ts`'s `printError`, both report renderers, the
+`--fix` result printer), since an error message or a subprocess's stderr is exactly where a leaked
+key is most likely to surface unnoticed.
+
+## Subprocess argument safety
+
+`utils/exec.ts`'s `run()` (argv array, `shell: false`) is necessary but not sufficient on its
+own: a changed-file path from an untrusted PR's diff can still be *interpreted as a flag* by the
+tool it's passed to if it isn't clearly separated from the option list first (e.g. a file literally
+named `--rulesdir=...`). Every call site that passes repo-controlled file paths as trailing
+arguments — `static-analysis-ingestion.ts`'s and `sandbox-runner.ts`'s eslint invocations,
+`git-commit-engine.ts`'s `git add`/`git checkout` — puts a literal `'--'` before the path list for
+exactly this reason. Adding a new subprocess call site that takes a list of repo-controlled paths
+should follow the same pattern.

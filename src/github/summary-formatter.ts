@@ -1,6 +1,6 @@
 import type { Finding, Severity } from '../core/types/finding.js';
 import type { ReviewResult } from '../core/types/review-result.js';
-import { SUMMARY_MARKER } from './markers.js';
+import { sanitizeAiText, SUMMARY_MARKER } from './markers.js';
 
 const SEVERITY_ORDER: Severity[] = ['BLOCKER', 'HIGH', 'MEDIUM', 'LOW', 'SUGGESTION'];
 
@@ -28,7 +28,7 @@ export function formatSummaryComment(result: ReviewResult, summaryOnlyFindings: 
   if (summaryOnlyFindings.length > 0) {
     lines.push('', '### Repo-level / cross-file findings', '');
     for (const f of summaryOnlyFindings) {
-      lines.push(`- **[${f.severity}]** ${f.title} — ${f.problem}`);
+      lines.push(`- **[${f.severity}]** ${sanitizeAiText(f.title)} — ${sanitizeAiText(f.problem)}`);
     }
   }
 

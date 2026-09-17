@@ -65,7 +65,9 @@ export interface CommitResult {
 export async function commitFixes(repoRoot: string, fixes: FixToApply[]): Promise<CommitResult> {
   const touchedFiles = [...new Set(fixes.map((f) => f.file))];
 
-  const addResult = await run('git', ['add', ...touchedFiles], { cwd: repoRoot, timeoutMs: 15_000 });
+  // `--` stops git's own arg parser from treating a touched-file path as a flag — consistent
+  // with the `git checkout --` call in revertFiles below.
+  const addResult = await run('git', ['add', '--', ...touchedFiles], { cwd: repoRoot, timeoutMs: 15_000 });
   if (addResult.exitCode !== 0) {
     await revertFiles(repoRoot, touchedFiles);
     return { committed: false, reason: `git add failed: ${addResult.stderr.trim()}` };

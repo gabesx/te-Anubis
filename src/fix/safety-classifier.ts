@@ -1,5 +1,6 @@
 import parseDiff from 'parse-diff';
 import type { Finding } from '../core/types/finding.js';
+import { matchesSecurityDenylist } from './denylist.js';
 
 export type SafetyClass = 'SAFE' | 'REVIEW_REQUIRED' | 'UNSAFE';
 
@@ -8,21 +9,6 @@ export interface SafetyClassification {
   reasons: string[];
 }
 
-/**
- * Never auto-fixable, regardless of what the diff looks like: secrets, keys,
- * CI/workflow definitions (which could be used to escalate permissions), and
- * auth/payment/security-sensitive paths.
- */
-const UNSAFE_PATH_PATTERNS = [
-  /(^|\/)\.env(\..*)?$/,
-  /\.(pem|key|crt|p12|pfx)$/,
-  /(^|\/)secrets?\//i,
-  /(^|\/)\.github\/workflows\//,
-  /(^|\/)\.git\//,
-  /(^|\/)(auth|authentication|payment|billing|crypto)[^/]*\//i,
-  /(auth|authentication|payment|billing)[^/]*\.[jt]sx?$/i,
-];
-
 const CONFIDENCE_THRESHOLD_FOR_SAFE = 0.85;
 const MAX_SAFE_DIFF_CHANGED_LINES = 30;
 
@@ -30,13 +16,17 @@ function allLinesOfType(changes: parseDiff.Change[], type: 'add' | 'del'): strin
   return changes.filter((c) => c.type === type).map((c) => c.content.slice(1)); // strip the leading +/-
 }
 
+/**
+ * Positional comparison, deliberately NOT a sorted-multiset comparison: sorting before
+ * comparing would treat a statement-*reorder* (e.g. swapping two lines, which can be a real
+ * behavioral change — order-dependent side effects, lock-before-use) as "the same lines,
+ * therefore whitespace-only." Line N removed must equal line N added, in place.
+ */
 function isWhitespaceOnly(changes: parseDiff.Change[]): boolean {
   const added = allLinesOfType(changes, 'add').map((l) => l.trim());
   const removed = allLinesOfType(changes, 'del').map((l) => l.trim());
   if (added.length !== removed.length) return false;
-  const sortedAdded = [...added].sort();
-  const sortedRemoved = [...removed].sort();
-  return sortedAdded.every((line, i) => line === sortedRemoved[i]);
+  return added.every((line, i) => line === removed[i]);
 }
 
 const IMPORT_LINE_PATTERN = /^\s*import\s.+;?\s*$/;
@@ -70,7 +60,7 @@ export function classifyFixSafety(finding: Finding, patch: string): SafetyClassi
   const reasons: string[] = [];
   const file = finding.location?.file ?? '';
 
-  if (UNSAFE_PATH_PATTERNS.some((p) => p.test(file))) {
+  if (matchesSecurityDenylist(file)) {
     return { class: 'UNSAFE', reasons: [`file path "${file}" matches a denylisted (secrets/CI/auth/payment) pattern`] };
   }
 
