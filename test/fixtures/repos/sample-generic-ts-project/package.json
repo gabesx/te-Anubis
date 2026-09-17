@@ -1,0 +1,7 @@
+{
+  "name": "sample-generic-ts-project",
+  "version": "1.0.0",
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}

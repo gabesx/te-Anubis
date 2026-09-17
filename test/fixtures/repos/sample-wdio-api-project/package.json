@@ -1,0 +1,9 @@
+{
+  "name": "sample-wdio-api-project",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@wdio/cli": "^8.0.0",
+    "@wdio/cucumber-framework": "^8.0.0",
+    "axios": "^1.6.0"
+  }
+}

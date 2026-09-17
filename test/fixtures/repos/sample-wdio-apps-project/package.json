@@ -1,0 +1,9 @@
+{
+  "name": "sample-wdio-apps-project",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@wdio/cli": "^8.0.0",
+    "@wdio/appium-service": "^8.0.0",
+    "appium": "^2.0.0"
+  }
+}

@@ -1,0 +1,35 @@
+import { Command } from 'commander';
+import { runReviewCommand } from './commands/review.js';
+
+const program = new Command();
+
+program.name('anubis').description('AI-powered, context-aware code review agent.').version('0.1.0');
+
+program
+  .command('review')
+  .description('Review local changes (git diff) and print findings.')
+  .option('--repo <path>', 'repository root to review', process.cwd())
+  .option('--base <ref>', 'base git ref to diff against', 'HEAD~1')
+  .option('--head <ref>', 'head git ref to diff', 'HEAD')
+  .option('--provider <name>', 'AI provider: anthropic | openai | gemini')
+  .option('--skill <id>', 'enable a specific skill (repeatable)', (value: string, previous: string[]) => [...previous, value], [] as string[])
+  .option('--config <path>', 'path to .anubis.yml')
+  .option('--json', 'output as JSON instead of a human-readable report')
+  .action(async (opts) => {
+    try {
+      await runReviewCommand({
+        repo: opts.repo,
+        base: opts.base,
+        head: opts.head,
+        provider: opts.provider,
+        skill: opts.skill,
+        config: opts.config,
+        json: opts.json,
+      });
+    } catch (err) {
+      console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program.parse();

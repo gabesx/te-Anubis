@@ -1,0 +1,51 @@
+{
+  "name": "te-anubis",
+  "version": "0.1.0",
+  "description": "AI-powered, context-aware code review agent — CLI and GitHub PR bot.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "anubis": "bin/anubis.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "skills"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@google/genai": "^2.23.0",
+    "commander": "^12.1.0",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0",
+    "minimatch": "^10.2.6",
+    "openai": "^7.17.0",
+    "p-limit": "^6.1.0",
+    "parse-diff": "^0.11.1",
+    "simple-git": "^3.27.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.14.0",
+    "@typescript-eslint/parser": "^8.14.0",
+    "eslint": "^9.14.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^5.0.1"
+  }
+}

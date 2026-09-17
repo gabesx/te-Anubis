@@ -1,0 +1,24 @@
+version: 1
+
+ai:
+  provider: anthropic
+
+review:
+  minimum_confidence: 0.7
+  max_comments: 15
+  max_files: 50
+
+skills:
+  auto_detect: true
+  enabled:
+    - code-convention
+
+github:
+  inline_comments: true
+  summary: true
+
+fix:
+  enabled: false
+  auto_commit: false
+  allowed:
+    - SAFE

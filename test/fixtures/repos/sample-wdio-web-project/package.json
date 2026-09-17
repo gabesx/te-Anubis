@@ -1,0 +1,8 @@
+{
+  "name": "sample-wdio-web-project",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@wdio/cli": "^8.0.0",
+    "@wdio/browser-runner": "^8.0.0"
+  }
+}
