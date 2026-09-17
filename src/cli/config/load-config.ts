@@ -8,6 +8,9 @@ import { AnubisConfigFileSchema, type AnubisConfigFile, type AnubisConfigFileInp
 export interface CliOverrides {
   provider?: 'anthropic' | 'openai' | 'gemini';
   skills?: string[];
+  /** Forces `skills.auto_detect` off — used by `/anubis review <skill>` to scope strictly to that skill
+   * rather than the usual union-with-auto-detected-skills behavior. */
+  autoDetect?: boolean;
   configPath?: string;
 }
 
@@ -82,6 +85,9 @@ export function loadConfig(repoRoot: string, overrides: CliOverrides = {}): Anub
   }
   if (overrides.skills && overrides.skills.length > 0) {
     cliConfig.skills = { enabled: overrides.skills };
+  }
+  if (overrides.autoDetect !== undefined) {
+    cliConfig.skills = { ...cliConfig.skills, auto_detect: overrides.autoDetect };
   }
 
   const merged = deepMerge(fileConfig as Record<string, unknown>, cliConfig as Record<string, unknown>);

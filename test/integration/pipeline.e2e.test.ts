@@ -14,7 +14,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
 }));
 
 const { runPipeline } = await import('../../src/core/pipeline/pipeline.js');
-const { PIPELINE_STAGES } = await import('../../src/cli/commands/review.js');
+const { PIPELINE_STAGES } = await import('../../src/cli/commands/pipeline-stages.js');
 const { buildReviewResult } = await import('../../src/core/reporting/build-review-result.js');
 const { loadConfig } = await import('../../src/cli/config/load-config.js');
 type PipelineContext = import('../../src/core/types/pipeline.js').PipelineContext;

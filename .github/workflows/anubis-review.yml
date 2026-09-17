@@ -1,0 +1,53 @@
+# Reviews a PR on open/reopen/synchronize and posts inline + summary comments.
+#
+# Deliberately uses `pull_request`, NEVER `pull_request_target`: for a fork PR,
+# GitHub automatically withholds repository secrets and issues a read-only
+# GITHUB_TOKEN to a `pull_request`-triggered run. That is the actual security
+# boundary this workflow relies on — checking out and analyzing untrusted PR
+# head content here is safe specifically because this trigger cannot leak
+# secrets or write back for fork-originated runs. Do not change this trigger
+# to `pull_request_target` without re-reading docs/architecture.md's security
+# section first.
+name: Anubis Review
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  issues: write
+
+concurrency:
+  group: anubis-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run Anubis review
+        run: node bin/anubis.js github-review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -1,0 +1,66 @@
+# Handles /anubis review|fix|explain comments on a PR.
+#
+# `issue_comment` runs in the base repo's context and — unlike `pull_request` —
+# does NOT get secrets/write access automatically stripped for a comment on a
+# fork PR. So this workflow deliberately checks out TWO things separately:
+#   1. `.`            — this repo's own trusted default branch: what gets
+#                        `npm ci`/built/executed.
+#   2. `./target-repo` — the commenting PR's head content: read-only DATA for
+#                        Anubis to analyze (git diff, file reads). Never
+#                        installed, never executed. This is what prevents a
+#                        malicious fork PR's postinstall script (or any other
+#                        executed code) from ever running in a job that holds
+#                        GITHUB_TOKEN/ANTHROPIC_API_KEY — the classic "pwn
+#                        request" pattern. Do not collapse these into a single
+#                        checkout of the PR head without re-reading
+#                        docs/architecture.md's security section first.
+#
+# Command authorization (who may run /anubis fix vs /anubis review) is
+# enforced in code (src/github/authorization.ts) against the commenter's live
+# collaborator permission — never trust the comment payload alone.
+name: Anubis Command
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  issues: write
+
+jobs:
+  command:
+    if: github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Anubis (trusted, this repo's default branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout PR head (untrusted, read-only target data)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          path: target-repo
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (trusted checkout only)
+        run: npm ci
+
+      - name: Build (trusted checkout only)
+        run: npm run build
+
+      - name: Handle Anubis command
+        run: node bin/anubis.js github-command
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANUBIS_TARGET_REPO: target-repo

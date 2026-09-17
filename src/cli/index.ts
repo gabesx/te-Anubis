@@ -1,4 +1,6 @@
 import { Command } from 'commander';
+import { runGithubCommandCommand } from './commands/github-command.js';
+import { runGithubReviewCommand } from './commands/github-review.js';
 import { runReviewCommand } from './commands/review.js';
 
 const program = new Command();
@@ -26,6 +28,30 @@ program
         config: opts.config,
         json: opts.json,
       });
+    } catch (err) {
+      console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('github-review')
+  .description('[Internal, run inside GitHub Actions] Review a pull_request event and post inline + summary comments.')
+  .action(async () => {
+    try {
+      await runGithubReviewCommand();
+    } catch (err) {
+      console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('github-command')
+  .description('[Internal, run inside GitHub Actions] Handle an issue_comment event (/anubis review|fix|explain).')
+  .action(async () => {
+    try {
+      await runGithubCommandCommand();
     } catch (err) {
       console.error(`[anubis] error: ${err instanceof Error ? err.message : String(err)}`);
       process.exitCode = 1;
