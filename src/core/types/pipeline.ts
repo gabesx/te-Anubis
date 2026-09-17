@@ -54,6 +54,10 @@ export interface PipelineContext {
   validation: { lint?: ToolCheckResult; typecheck?: ToolCheckResult; tests?: ToolCheckResult };
   /** The actual model string a provider reported back (stage 07) — may differ from config.ai.model when that was left unset and the provider picked its own default. */
   actualModelUsed?: string;
+  /** When set, ai-review (stage 07) writes each request/response pair to this local directory —
+   * the `--debug` escape hatch for inspecting raw prompts without them ever reaching stdout,
+   * a report, or a posted comment. Unset (the default) writes nothing. */
+  debugDir?: string;
   rawFindings: Finding[];
   findings: Finding[];
   filesSkipped: string[];

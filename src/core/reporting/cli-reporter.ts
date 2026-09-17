@@ -58,6 +58,12 @@ function buildReport(result: ReviewResult): string {
   }
 
   lines.push(`\nProvider: ${result.provider.name} (${result.provider.model})`);
+
+  const m = result.metrics;
+  lines.push(
+    `\nRun: ${m.durationMs}ms · ${m.llmRequests} request(s) · ${m.tokensIn}+${m.tokensOut} tokens · ~$${m.estimatedCostUsd.toFixed(4)}`,
+  );
+
   return lines.join('\n');
 }
 

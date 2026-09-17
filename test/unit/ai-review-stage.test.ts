@@ -1,3 +1,6 @@
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { AIProvider } from '../../src/core/providers/provider.js';
 import type { ChangedFile, ContextBundle } from '../../src/core/types/context.js';
@@ -127,5 +130,31 @@ describe('aiReviewStage', () => {
     const result = await aiReviewStage.run(ctx);
 
     expect(result.rawFindings).toEqual([]);
+  });
+
+  it('writes a debug record per request when ctx.debugDir is set', async () => {
+    complete.mockReset();
+    complete.mockResolvedValue({ text: JSON.stringify({ findings: [] }), usage: { inputTokens: 10, outputTokens: 5 }, model: 'claude-sonnet-4-5' });
+
+    const debugDir = mkdtempSync(join(tmpdir(), 'anubis-debug-stage-test-'));
+    try {
+      const ctx = makeContext([makeChangedFile('src/a.ts'), makeChangedFile('src/b.ts')], ['code-convention']);
+      ctx.debugDir = debugDir;
+
+      await aiReviewStage.run(ctx);
+
+      expect(readdirSync(debugDir)).toHaveLength(2);
+    } finally {
+      rmSync(debugDir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes nothing when ctx.debugDir is unset (the default)', async () => {
+    complete.mockReset();
+    complete.mockResolvedValue({ text: JSON.stringify({ findings: [] }), usage: { inputTokens: 10, outputTokens: 5 }, model: 'claude-sonnet-4-5' });
+
+    const ctx = makeContext([makeChangedFile('src/a.ts')], ['code-convention']);
+    expect(ctx.debugDir).toBeUndefined();
+    await expect(aiReviewStage.run(ctx)).resolves.toBeDefined();
   });
 });

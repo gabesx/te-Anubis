@@ -4,6 +4,7 @@ import type { ChangedFile, ContextBundle } from '../../types/context.js';
 import type { Finding } from '../../types/finding.js';
 import type { PipelineContext, ResolvedSkill, ReviewPipelineStage } from '../../types/pipeline.js';
 import { AI_REVIEW_SYSTEM_PROMPT, buildUserPrompt } from '../ai-review/build-prompt.js';
+import { writeDebugRecord } from '../ai-review/debug-writer.js';
 import { parseFindings } from '../ai-review/parse-findings.js';
 
 const MAX_CONCURRENT_REQUESTS = 4;
@@ -50,7 +51,7 @@ export const aiReviewStage: ReviewPipelineStage = {
     const limit = pLimit(MAX_CONCURRENT_REQUESTS);
 
     const perFileFindings = await Promise.all(
-      tasks.map((task) =>
+      tasks.map((task, index) =>
         limit(async (): Promise<Finding[]> => {
           const allowedSkills = new Map(task.matchedSkills.map((s) => [s.frontmatter.id, s.frontmatter.autoFixable]));
           const userPrompt = buildUserPrompt(task.bundle, task.matchedSkills);
@@ -67,6 +68,17 @@ export const aiReviewStage: ReviewPipelineStage = {
             ctx.metrics.tokensOut += response.usage.outputTokens;
             ctx.metrics.estimatedCostUsd += provider.estimateCost(response.usage);
             ctx.actualModelUsed ??= response.model;
+
+            if (ctx.debugDir) {
+              writeDebugRecord(ctx.debugDir, index, {
+                file: task.file.path,
+                systemPrompt: AI_REVIEW_SYSTEM_PROMPT,
+                userPrompt,
+                responseText: response.text,
+                model: response.model,
+                usage: response.usage,
+              });
+            }
 
             return parseFindings(response.text, { filePath: task.file.path, allowedSkills });
           } catch {

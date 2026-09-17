@@ -13,6 +13,9 @@ export interface RunReviewPipelineOptions {
   headRef: string;
   prNumber?: number;
   overrides?: CliOverrides;
+  /** Local-only directory for `ai-review` to dump raw prompt/response pairs — the `--debug`
+   * escape hatch. Unset (the default) writes nothing. */
+  debugDir?: string;
 }
 
 export interface RunReviewPipelineResult {
@@ -41,6 +44,7 @@ export async function runReviewPipeline(options: RunReviewPipelineOptions): Prom
     contextBundles: new Map(),
     lintIssues: [],
     validation: {},
+    debugDir: options.debugDir,
     rawFindings: [],
     findings: [],
     filesSkipped: [],

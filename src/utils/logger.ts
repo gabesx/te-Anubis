@@ -38,3 +38,49 @@ export const logger = {
   warn: (message: string, meta?: Record<string, unknown>) => log('warn', message, meta),
   error: (message: string, meta?: Record<string, unknown>) => log('error', message, meta),
 };
+
+/** Minimal structural shape this only needs — avoids a runtime dependency on core/ from utils/. */
+interface RunSummarySource {
+  runId: string;
+  target: { prNumber?: number; commitSha: string };
+  provider: { name: string; model: string };
+  skillsUsed: string[];
+  summary: { filesAnalyzed: number; filesSkipped: number };
+  metrics: {
+    llmRequests: number;
+    tokensIn: number;
+    tokensOut: number;
+    estimatedCostUsd: number;
+    durationMs: number;
+    findingsGenerated: number;
+    findingsRejected: number;
+    findingsFinal: number;
+  };
+}
+
+/**
+ * The single place every entry point (local CLI, GitHub review, GitHub
+ * command) logs a run's observability summary — used so "every run emits a
+ * complete metrics object" is actually true by construction rather than each
+ * call site remembering to list every field itself.
+ */
+export function logRunSummary(result: RunSummarySource): void {
+  logger.info('Run summary', {
+    runId: result.runId,
+    prNumber: result.target.prNumber,
+    commitSha: result.target.commitSha,
+    provider: result.provider.name,
+    model: result.provider.model,
+    skillsUsed: result.skillsUsed,
+    filesAnalyzed: result.summary.filesAnalyzed,
+    filesSkipped: result.summary.filesSkipped,
+    llmRequests: result.metrics.llmRequests,
+    tokensIn: result.metrics.tokensIn,
+    tokensOut: result.metrics.tokensOut,
+    estimatedCostUsd: result.metrics.estimatedCostUsd,
+    durationMs: result.metrics.durationMs,
+    findingsGenerated: result.metrics.findingsGenerated,
+    findingsRejected: result.metrics.findingsRejected,
+    findingsFinal: result.metrics.findingsFinal,
+  });
+}

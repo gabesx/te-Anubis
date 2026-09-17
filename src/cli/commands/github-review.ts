@@ -5,7 +5,7 @@ import {
   type PullRequestEventPayload,
 } from '../../github/action-context.js';
 import { GitHubIntegration } from '../../github/github-integration.js';
-import { logger } from '../../utils/logger.js';
+import { logger, logRunSummary } from '../../utils/logger.js';
 import { runReviewPipeline } from './run-review-pipeline.js';
 
 /**
@@ -32,7 +32,7 @@ export async function runGithubReviewCommand(): Promise<void> {
     });
 
     await integration.postReview(pr, result, changedFiles);
-    logger.info('Posted review', { findings: result.findings.length, filesAnalyzed: result.summary.filesAnalyzed });
+    logRunSummary(result);
   } catch (err) {
     if (pr.isFork) {
       // GitHub structurally withholds repository secrets (including the AI provider key) from

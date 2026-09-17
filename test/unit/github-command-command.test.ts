@@ -31,6 +31,21 @@ vi.mock('../../src/cli/commands/run-review-pipeline.js', () => ({ runReviewPipel
 
 const { runGithubCommandCommand } = await import('../../src/cli/commands/github-command.js');
 
+function makeFakeReviewResult() {
+  return {
+    runId: 'run-1',
+    repo: { root: '/repo' },
+    target: { baseRef: 'base1', headRef: 'head1', commitSha: 'head1', prNumber: 5 },
+    provider: { name: 'anthropic', model: 'claude-sonnet-4-5' },
+    skillsUsed: [],
+    findings: [],
+    summary: { countsBySeverity: { BLOCKER: 0, HIGH: 0, MEDIUM: 0, LOW: 0, SUGGESTION: 0 }, filesAnalyzed: 1, filesSkipped: 0 },
+    validation: {},
+    metrics: { llmRequests: 0, tokensIn: 0, tokensOut: 0, estimatedCostUsd: 0, durationMs: 0, findingsGenerated: 0, findingsRejected: 0, findingsFinal: 0, stageDurations: {} },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 describe('runGithubCommandCommand', () => {
   let eventPath: string;
   const originalEnv = { ...process.env };
@@ -53,7 +68,7 @@ describe('runGithubCommandCommand', () => {
     postReview.mockReset();
     postPlainComment.mockReset();
     postExplainComment.mockReset();
-    runReviewPipeline.mockReset().mockResolvedValue({ result: { findings: [] }, changedFiles: [] });
+    runReviewPipeline.mockReset().mockResolvedValue({ result: makeFakeReviewResult(), changedFiles: [] });
   });
 
   afterEach(() => {

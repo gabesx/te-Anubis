@@ -1,0 +1,107 @@
+TE-Anubis — Implementation History
+===================================
+Append-only log of implementation phases as they land. See docs/architecture.md
+for the current-state design and .claude plan history for the full phase plan.
+
+2026-09-17 11:02 UTC+7 | 73f5fd8 | Initial commit
+  Repo created (README only): "te-Anubis — The Strict PR Quality Gate".
+
+2026-09-17 12:56 UTC+7 | f58e58a | Phases 1-5: CLI MVP
+  Provider-agnostic AI code review engine with a CLI entry point.
+  - 11-stage sequential review pipeline (repo discovery -> report output).
+  - AI Provider Layer: full Anthropic Claude implementation; thin-but-real
+    OpenAI/Gemini implementations behind a common interface.
+  - Skill Engine: auto-detection + manual override; four initial skills
+    (review-wdio-api/apps/web-automation, code-convention).
+  - Repository Context Engine: git diff analysis, manifest reading, budgeted
+    per-file context assembly.
+  - Review Engine: static analysis ingestion, map-reduce AI review,
+    rule-based finding validation, dedup, severity classification,
+    max_comments noise-reduction cap.
+  - GitHub Integration and Fix Engine left as named-but-empty seams.
+  114 tests. Verified end-to-end against real fixture repos through the
+  built CLI (not just mocks).
+
+2026-09-17 13:07 UTC+7 | 8750dca | Phase 6: GitHub Integration
+  Read-only GitHub Action layer on top of the review engine.
+  - anubis-review.yml: pull_request-triggered review, inline + summary
+    comments. Never pull_request_target, so fork PRs get GitHub's automatic
+    read-only-token/no-secrets sandboxing structurally.
+  - anubis-command.yml: issue_comment-triggered /anubis review|fix|explain,
+    authorized against the commenter's live collaborator permission.
+    Checks out Anubis's own trusted source separately from the commenting
+    PR's untrusted head content (never npm-installed/executed) to avoid a
+    pwn-request vulnerability, since issue_comment doesn't get the same
+    automatic fork secret-stripping as pull_request.
+  - Idempotent marker-based comment updates; fork PRs that can't get an AI
+    review (no secrets) degrade to an informative comment instead of
+    crashing; /anubis fix responds that fix mode isn't available yet.
+  167 tests.
+
+2026-09-17 13:18 UTC+7 | d44cfaf | Phase 8: Fix Engine
+  Rule-based, fail-closed auto-fix on top of the review engine, usable via
+  local CLI --fix/--suggest-fixes.
+  - safety-classifier.ts: SAFE only for three narrow, verifiable diff
+    shapes (whitespace-only, unused-import-removal-only,
+    assertion-addition-only); a file-path denylist forces UNSAFE
+    regardless of shape; everything unmatched fails closed to
+    REVIEW_REQUIRED.
+  - patch-validator.ts: independent structural gate — path-traversal /
+    symlink-escape rejection, scope enforcement, git apply --check.
+  - sandbox-runner.ts: runs the target repo's own configured
+    eslint/tsc/test script before any commit.
+  - git-commit-engine.ts: apply -> sandbox-check -> commit, revert on any
+    failure; never --force, never rewrites history, never pushes itself.
+  - GitHub's /anubis fix still deferred — push-to-PR-branch is a
+    deliberately separate, later decision.
+  Also extended the AI review schema with an optional per-finding `patch`
+  field. Added docs/architecture.md, docs/writing-skills.md, and a real
+  README.
+  203 tests.
+
+2026-09-17 13:38 UTC+7 | 4551b3d | Phase 10: Security audit + fixes
+  Formal adversarial security audit (shell injection, path traversal,
+  prompt injection, secret handling, GitHub Actions trust boundary, Fix
+  Engine classifier/validator, dependency supply chain). Found and fixed:
+  - HIGH: any PR commenter could forge Anubis's marker comments (public,
+    hardcoded strings) to overwrite the bot's summary or suppress a
+    finding — fixed with bot-login filtering on every marker scan
+    (github-actions[bot] by default, GET /user deliberately NOT used since
+    it rejects the GITHUB_TOKEN App-installation token).
+  - HIGH: CLI error output and the --fix printer bypassed secret
+    redaction — routed through utils/logger.ts's redact() everywhere.
+  - HIGH: changed-file paths passed to eslint without a `--` separator,
+    allowing argument injection via a maliciously-named file.
+  - MEDIUM: the "whitespace-only" SAFE-shape check compared lines as a
+    sorted set, not positionally — a statement-reorder could pass as
+    safe. Fixed to positional comparison.
+  - MEDIUM: SafetyClassifier and PatchValidator's security denylists had
+    drifted apart; consolidated into one shared module. Also closed a
+    symlink-mode-diff gap in PatchValidator.
+  - MEDIUM: unescaped AI-generated finding text could forge marker syntax
+    in GitHub comments via a successful prompt injection; added
+    sanitizeAiText() (neutralize + length cap) everywhere AI text reaches
+    a comment body.
+  - LOW: dropped an unused `checks: write` workflow permission.
+  220 tests (17 new/updated regression tests for these fixes). npm audit
+  unchanged (1 low, unrelated, Windows-dev-server-only).
+
+2026-09-17 14:19 UTC+7 | (this commit — a commit can't contain its own hash) | Phase 9: Observability completeness pass
+  - Added the `--debug` flag documented but not yet built in earlier
+    phases: writes raw AI prompt/response pairs to a local
+    .anubis-debug/<timestamp>/ directory only (never stdout, never a
+    report, never a comment) — the sanctioned escape hatch for inspecting
+    exactly what was sent/received without violating the "never leak raw
+    prompts" rule everywhere else.
+  - Added logRunSummary() (utils/logger.ts): the one place every entry
+    point (local CLI, GitHub review, GitHub command) logs a complete
+    RunMetrics summary, so "every run emits complete metrics" is true by
+    construction rather than each call site remembering every field.
+    Wired into both GitHub entry points.
+  - Human-readable CLI report now surfaces duration/tokens/cost (was
+    previously JSON-only) — closed a real observability gap, not just a
+    docs claim.
+  - Caught a real bug while wiring this in: .gitignore's `*.log` pattern
+    was silently excluding the just-created history.log from git tracking
+    — added `!history.log`.
+  226 tests (up from 220).

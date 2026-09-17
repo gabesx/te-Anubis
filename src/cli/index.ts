@@ -28,6 +28,7 @@ program
   .option('--json', 'output as JSON instead of a human-readable report')
   .option('--fix', 'commit SAFE-classified fixes locally (never pushes; see docs/architecture.md)')
   .option('--suggest-fixes', 'show proposed fixes without applying or committing any of them')
+  .option('--debug', 'write raw AI prompts/responses to a local .anubis-debug/ directory (never stdout)')
   .action(async (opts) => {
     try {
       await runReviewCommand({
@@ -40,6 +41,7 @@ program
         json: opts.json,
         fix: opts.fix,
         suggestFixes: opts.suggestFixes,
+        debug: opts.debug,
       });
     } catch (err) {
       printError(err);

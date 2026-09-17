@@ -61,9 +61,24 @@ describe('runGithubReviewCommand', () => {
     await expect(runGithubReviewCommand()).rejects.toThrow(/GITHUB_TOKEN/);
   });
 
+  function makeFakeReviewResult() {
+    return {
+      runId: 'run-1',
+      repo: { root: '/repo' },
+      target: { baseRef: 'base1', headRef: 'head1', commitSha: 'head1', prNumber: 3 },
+      provider: { name: 'anthropic', model: 'claude-sonnet-4-5' },
+      skillsUsed: [],
+      findings: [],
+      summary: { countsBySeverity: { BLOCKER: 0, HIGH: 0, MEDIUM: 0, LOW: 0, SUGGESTION: 0 }, filesAnalyzed: 2, filesSkipped: 0 },
+      validation: {},
+      metrics: { llmRequests: 0, tokensIn: 0, tokensOut: 0, estimatedCostUsd: 0, durationMs: 0, findingsGenerated: 0, findingsRejected: 0, findingsFinal: 0, stageDurations: {} },
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
   it('runs the review pipeline and posts the result for a same-repo PR', async () => {
     writeEvent('allofresh/te-Anubis');
-    runReviewPipeline.mockResolvedValue({ result: { findings: [], summary: { filesAnalyzed: 2 } }, changedFiles: [] });
+    runReviewPipeline.mockResolvedValue({ result: makeFakeReviewResult(), changedFiles: [] });
 
     await runGithubReviewCommand();
 

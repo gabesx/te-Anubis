@@ -4,7 +4,7 @@ import { checkAuthorization } from '../../github/authorization.js';
 import { GitHubIntegration } from '../../github/github-integration.js';
 import { readEventPayload, requireGithubToken, type IssueCommentEventPayload } from '../../github/action-context.js';
 import type { PullRequestRef } from '../../core/seams/github-integration.js';
-import { logger } from '../../utils/logger.js';
+import { logger, logRunSummary } from '../../utils/logger.js';
 import { runReviewPipeline } from './run-review-pipeline.js';
 
 /**
@@ -83,5 +83,6 @@ export async function runGithubCommandCommand(): Promise<void> {
     await integration.postReview(pr, result, changedFiles);
   }
 
-  logger.info('Handled command', { command: command.type, actor, findings: result.findings.length });
+  logger.info('Handled command', { command: command.type, actor });
+  logRunSummary(result);
 }

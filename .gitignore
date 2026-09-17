@@ -1,6 +1,8 @@
 node_modules/
 dist/
 *.log
+!history.log
+.anubis-debug/
 .DS_Store
 .env
 .env.*

@@ -3,7 +3,7 @@ import { cliReporter } from '../../core/reporting/cli-reporter.js';
 import { formatFixResult } from '../../core/reporting/fix-reporter.js';
 import { jsonReporter } from '../../core/reporting/json-reporter.js';
 import { FixEngine } from '../../fix/fix-engine.js';
-import { redact } from '../../utils/logger.js';
+import { logger, redact } from '../../utils/logger.js';
 import { runReviewPipeline } from './run-review-pipeline.js';
 
 export interface ReviewCommandOptions {
@@ -16,10 +16,12 @@ export interface ReviewCommandOptions {
   json?: boolean;
   fix?: boolean;
   suggestFixes?: boolean;
+  debug?: boolean;
 }
 
 export async function runReviewCommand(options: ReviewCommandOptions): Promise<void> {
   const repoRoot = resolve(options.repo ?? process.cwd());
+  const debugDir = options.debug ? resolve(repoRoot, '.anubis-debug', String(Date.now())) : undefined;
 
   const { result, finalContext } = await runReviewPipeline({
     repoRoot,
@@ -30,7 +32,12 @@ export async function runReviewCommand(options: ReviewCommandOptions): Promise<v
       skills: options.skill,
       configPath: options.config,
     },
+    debugDir,
   });
+
+  if (debugDir) {
+    logger.info(`Debug prompts/responses written to ${debugDir}`);
+  }
 
   const reporter = options.json ? jsonReporter : cliReporter;
   await reporter.render(result);
