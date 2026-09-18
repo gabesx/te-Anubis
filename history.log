@@ -219,7 +219,7 @@ for the current-state design and .claude plan history for the full phase plan.
   before drawing conclusions from it, not a one-shot "0 findings on a
   clean PR" result.
 
-2026-09-18 11:03 UTC+7 | 2ff5e4a (PR TBD) | Added docs/local-setup.md
+2026-09-18 11:03 UTC+7 | b622b79 (PR #3, merged to main) | Added docs/local-setup.md
   User asked for a quick guideline on using TE-Anubis against a project
   other than itself. Added docs/local-setup.md covering:
   - CLI usage against any local repo via --repo (works today, no
@@ -233,3 +233,22 @@ for the current-state design and .claude plan history for the full phase plan.
     /anubis-comment-command case, with reviewer/target checkout roles
     inverted from how this repo uses it for self-review.
   Linked from README.md. Docs-only change, no code touched.
+
+2026-09-18 11:11 UTC+7 | 60d1475 (PR TBD) | Repo transferred to gabesx/te-Anubis and made public
+  User moved the repo from the allofresh org to their personal account
+  and set it public — motivated by an earlier question about a
+  `curl | bash` installer, which needs a public repo (raw.githubusercontent.com
+  URLs 404 on private repos without an auth token).
+
+  git@github.com:allofresh/te-Anubis.git still worked afterward — GitHub
+  auto-redirects the old path unless another repo reclaims that name —
+  but the local `origin` remote was pointed at the canonical
+  git@github.com:gabesx/te-Anubis.git instead of relying on that
+  redirect. Fixed the two real (non-test-fixture) hardcoded references
+  to the old allofresh/te-Anubis path: the clone URL and the example
+  `repository:` field in docs/local-setup.md. Left references inside
+  test fixtures alone (test/unit/action-context.test.ts and friends use
+  'allofresh/te-Anubis' as arbitrary example data for generic payload-
+  parsing logic — not tied to this repo's real location). Also added
+  `repository`/`homepage`/`bugs` fields to package.json, useful now that
+  the repo is public and a real candidate for npm publish later.

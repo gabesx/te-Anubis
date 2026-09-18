@@ -10,7 +10,7 @@ file rather than installing a package).
 This is the fastest path and needs nothing from the target project itself.
 
 ```bash
-git clone git@github.com:allofresh/te-Anubis.git
+git clone git@github.com:gabesx/te-Anubis.git
 cd te-Anubis
 npm install
 npm run build
@@ -81,7 +81,7 @@ jobs:
       - name: Checkout TE-Anubis
         uses: actions/checkout@v7
         with:
-          repository: allofresh/te-Anubis
+          repository: gabesx/te-Anubis
           ref: main   # pin to a commit SHA for real use — see the security note in this repo's own workflows
           path: .te-anubis
 
