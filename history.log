@@ -191,7 +191,7 @@ for the current-state design and .claude plan history for the full phase plan.
   future changes, per explicit user preference (previously every commit
   went straight to main). This change went through PR #1.
 
-2026-09-18 10:53 UTC+7 | aef66be (PR TBD) | First real, live GitHub Action review (production conditions, not a fixture)
+2026-09-18 10:53 UTC+7 | 574c23b (PR #2, merged to main) | First real, live GitHub Action review (production conditions, not a fixture)
   Opening PR #1 triggered anubis-review.yml against itself for the first
   time. It failed initially, correctly and as designed: no provider
   secret had ever been configured on this repo, and for a same-repo
@@ -218,3 +218,18 @@ for the current-state design and .claude plan history for the full phase plan.
   repo — though tuning itself still needs iteration over more real PRs
   before drawing conclusions from it, not a one-shot "0 findings on a
   clean PR" result.
+
+2026-09-18 11:03 UTC+7 | 2ff5e4a (PR TBD) | Added docs/local-setup.md
+  User asked for a quick guideline on using TE-Anubis against a project
+  other than itself. Added docs/local-setup.md covering:
+  - CLI usage against any local repo via --repo (works today, no
+    caveats — nothing needs to be installed into the target project).
+  - GitHub Actions on another repo: TE-Anubis has no published npm
+    package or reusable composite action yet, so this is a documented
+    manual pattern (fetch TE-Anubis as a second checkout, build only
+    that checkout, never the target project's) rather than a real
+    "install" step. Reused the existing ANUBIS_TARGET_REPO mechanism
+    (already built for this repo's own anubis-command.yml) for the
+    /anubis-comment-command case, with reviewer/target checkout roles
+    inverted from how this repo uses it for self-review.
+  Linked from README.md. Docs-only change, no code touched.
