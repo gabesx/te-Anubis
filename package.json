@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "AI-powered, context-aware code review agent — CLI and GitHub PR bot.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabesx/te-Anubis.git"
+  },
+  "homepage": "https://github.com/gabesx/te-Anubis",
+  "bugs": "https://github.com/gabesx/te-Anubis/issues",
   "type": "module",
   "bin": {
     "anubis": "bin/anubis.js"
