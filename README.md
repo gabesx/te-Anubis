@@ -42,6 +42,9 @@ Skills auto-detect from repo signals (`wdio.conf.*`, package dependencies, etc.)
 [`docs/writing-skills.md`](docs/writing-skills.md) to add your own. Configure via `.anubis.yml`
 at the repo root (see the one in this repo for every available option).
 
+To point Anubis at a project other than this one (CLI or GitHub Actions), see
+[`docs/local-setup.md`](docs/local-setup.md).
+
 ### AI providers
 
 `ai.provider` defaults to `auto`: whichever of `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`,
