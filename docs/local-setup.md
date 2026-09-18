@@ -10,19 +10,35 @@ file rather than installing a package).
 This is the fastest path and needs nothing from the target project itself.
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/gabesx/te-Anubis/main/install.sh | bash
+```
+
+That builds from source (no published npm package yet — needs Node.js ≥20 already installed) and
+symlinks `anubis` into `~/.local/bin`; re-run the same command later to update. See
+[`install.sh`](../install.sh) for what it does and which env vars (`TE_ANUBIS_INSTALL_DIR`,
+`TE_ANUBIS_BIN_DIR`, `TE_ANUBIS_REF`) customize it. Or build it yourself:
+
+```bash
 git clone git@github.com:gabesx/te-Anubis.git
 cd te-Anubis
 npm install
 npm run build
+```
 
+Either way, then:
+
+```bash
 export GEMINI_API_KEY=...      # or ANTHROPIC_API_KEY / OPENAI_API_KEY — whichever you have;
                                  # ai.provider defaults to "auto" and checks them in that order
 
-node bin/anubis.js review \
+anubis review \
   --repo /path/to/your-project \
   --base main \
   --head HEAD
 ```
+
+(`node bin/anubis.js review ...` instead of `anubis review ...` if you built from source without
+running the installer, and are running commands from inside the `te-Anubis` checkout.)
 
 That's it — `--repo` points Anubis at any git repository on disk; it doesn't need to be checked
 out inside TE-Anubis's own directory. Useful flags:
