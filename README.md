@@ -10,18 +10,21 @@ engine (see [`docs/architecture.md`](docs/architecture.md)).
 ## Quickstart
 
 ```bash
-npm install
-npm run build
+curl -fsSL https://raw.githubusercontent.com/gabesx/te-Anubis/main/install.sh | bash
 
 export GEMINI_API_KEY=...   # or ANTHROPIC_API_KEY / OPENAI_API_KEY — whichever you have,
                              # checked in that order (see "AI providers" below)
-node bin/anubis.js review --base HEAD~1 --head HEAD
+anubis review --base HEAD~1 --head HEAD
 ```
 
-Once published, this becomes:
+There's no published npm package yet, so [`install.sh`](install.sh) builds from source (needs
+Node.js ≥20 already on your machine) and symlinks `anubis` into `~/.local/bin` — re-run it any
+time to update. Prefer to build it yourself instead:
 
 ```bash
-npx te-anubis review
+git clone git@github.com:gabesx/te-Anubis.git && cd te-Anubis
+npm install && npm run build
+node bin/anubis.js review --base HEAD~1 --head HEAD
 ```
 
 ## Usage

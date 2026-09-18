@@ -234,7 +234,7 @@ for the current-state design and .claude plan history for the full phase plan.
     inverted from how this repo uses it for self-review.
   Linked from README.md. Docs-only change, no code touched.
 
-2026-09-18 11:11 UTC+7 | 60d1475 (PR TBD) | Repo transferred to gabesx/te-Anubis and made public
+2026-09-18 11:11 UTC+7 | 6fb0409 (PR #4, merged to main) | Repo transferred to gabesx/te-Anubis and made public
   User moved the repo from the allofresh org to their personal account
   and set it public — motivated by an earlier question about a
   `curl | bash` installer, which needs a public repo (raw.githubusercontent.com
@@ -252,3 +252,28 @@ for the current-state design and .claude plan history for the full phase plan.
   parsing logic — not tied to this repo's real location). Also added
   `repository`/`homepage`/`bugs` fields to package.json, useful now that
   the repo is public and a real candidate for npm publish later.
+
+2026-09-18 11:18 UTC+7 | fc21b4d (PR TBD) | Added install.sh (curl \| bash installer)
+  Now that the repo is public, built the installer requested earlier:
+  `curl -fsSL .../install.sh | bash`. Since there's no published npm
+  package or standalone binary, it clones (or updates, if already
+  installed) TE-Anubis into ~/.te-anubis, builds it with whatever
+  Node.js/npm is already on the machine, and symlinks `anubis` into
+  ~/.local/bin — all paths and the git ref overridable via
+  TE_ANUBIS_INSTALL_DIR / TE_ANUBIS_BIN_DIR / TE_ANUBIS_REF /
+  TE_ANUBIS_REPO_URL env vars (the last one added specifically so CI can
+  point the script at the local checkout under test instead of the real
+  network, rather than only ever exercising main).
+
+  Fixed a real, pre-existing gap this surfaced: bin/anubis.js was
+  committed without its executable bit set — harmless when invoked via
+  `node bin/anubis.js`, but would have made a direct symlink to it
+  unusable. Verified the whole thing three times, for real, not just
+  read: a fresh install (real clone from the actual public GitHub repo),
+  re-running the installer against an existing install (the update
+  path), and the CI-equivalent sequence locally (file:// clone pinned to
+  the exact commit under test, matching what the new CI step now does
+  automatically on every PR going forward).
+
+  README and docs/local-setup.md now lead with the one-liner; the manual
+  clone-and-build steps are kept as the explicit alternative.

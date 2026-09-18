@@ -47,3 +47,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Test install.sh (against this checkout, not the real remote)
+        run: |
+          bash -n install.sh
+          export TE_ANUBIS_REPO_URL="file://$(pwd)"
+          export TE_ANUBIS_REF="$(git rev-parse HEAD)"
+          export TE_ANUBIS_INSTALL_DIR="${RUNNER_TEMP}/te-anubis-install-test"
+          export TE_ANUBIS_BIN_DIR="${RUNNER_TEMP}/te-anubis-bin-test"
+          bash install.sh
+          "${TE_ANUBIS_BIN_DIR}/anubis" --version
