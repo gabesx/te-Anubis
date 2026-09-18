@@ -4,7 +4,11 @@ import { logger } from '../../utils/logger.js';
 import { estimateCostUsd } from './pricing.js';
 import type { AIProvider, AIRequest, AIResponse, AIUsage } from './provider.js';
 
-const DEFAULT_MODEL = 'gemini-1.5-pro';
+// A stable Google-maintained alias, not a pinned version — model generations move fast (e.g.
+// gemini-1.5-pro, the previous default here, was fully retired and returns a 404 as of this
+// writing) and "-latest" is Google's own answer to that: it always points at their current
+// recommended flash-tier model rather than requiring this codebase to chase version numbers.
+const DEFAULT_MODEL = 'gemini-flash-latest';
 
 let warnedOnce = false;
 
@@ -27,7 +31,11 @@ export class GeminiProvider implements AIProvider {
       logger.warn('Gemini provider is an MVP-minimal implementation — revisit before production use.');
       warnedOnce = true;
     }
-    this.client = new GoogleGenAI({ apiKey });
+    // Unlike the Anthropic SDK (`maxRetries` on the client), @google/genai does not retry
+    // automatically unless `httpOptions.retryOptions` is explicitly set — confirmed via a live
+    // smoke test that a bare 503 ("high demand") from Gemini surfaced as an immediate, single-
+    // attempt failure with this left unset. `{}` opts into the SDK's own defaults (5 attempts).
+    this.client = new GoogleGenAI({ apiKey, httpOptions: { retryOptions: {} } });
     this.model = model ?? DEFAULT_MODEL;
   }
 

@@ -3,7 +3,8 @@ import { ProviderError } from '../../utils/errors.js';
 import { estimateCostUsd } from './pricing.js';
 import type { AIProvider, AIRequest, AIResponse, AIUsage } from './provider.js';
 
-const DEFAULT_MODEL = 'claude-sonnet-4-5';
+// claude-sonnet-4-5 (the previous default) has been superseded by the Claude 5 family.
+const DEFAULT_MODEL = 'claude-sonnet-5';
 
 /**
  * Non-streaming on purpose: findings are consumed as parsed JSON, so

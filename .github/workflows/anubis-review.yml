@@ -49,4 +49,9 @@ jobs:
         run: node bin/anubis.js github-review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ai.provider defaults to "auto" (.anubis.yml): whichever of these is actually
+          # configured as a repo secret gets used, checked Gemini first. An unset secret
+          # resolves to an empty string, which auto-detection correctly treats as "not set".
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

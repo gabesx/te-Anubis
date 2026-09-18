@@ -146,3 +146,43 @@ for the current-state design and .claude plan history for the full phase plan.
   7 is the one open item, blocked on a real ANTHROPIC_API_KEY becoming
   available — revisit then, not before, since tuning noise-reduction
   without real model output would just be guessing.
+
+2026-09-18 10:38 UTC+7 | f602f63 (pre-merge branch commit; see PR for the merge commit on main) | Provider auto-detection (Gemini first) + real-key bug fixes; first live dogfooding
+  A GEMINI_API_KEY turned out to already be set in the shell (user request:
+  "add the capability to use gemini key first"). Added provider
+  auto-detection instead of a hardcoded default:
+  - `ai.provider: auto` (the new schema default) resolves to whichever of
+    GEMINI_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY is actually set,
+    checked in PROVIDER_AUTO_DETECT_PRIORITY order (Gemini first) —
+    core/providers/provider.ts. Resolution happens once in
+    cli/config/load-config.ts; core/ never sees "auto", only a concrete
+    provider. An explicit config/--provider value always wins; --provider
+    auto forces re-detection. Updated both GitHub workflows to pass
+    through all three provider secrets.
+  - This is also the project's first genuine live dogfooding data (not
+    mocked): running `anubis review` for real against fixture repos with
+    the actual Gemini API surfaced two real bugs immediately —
+    1. DEFAULT_MODEL 'gemini-1.5-pro' is fully retired (404). Switched to
+       'gemini-flash-latest' (a Google-maintained alias, chosen so this
+       doesn't recur) and, since the same 'claude-sonnet-4-5' pattern was
+       clearly stale too, updated Anthropic's default to 'claude-sonnet-5'.
+       pricing.ts keeps the old entries for anyone still pinning them
+       explicitly via ai.model.
+    2. @google/genai does not retry transient errors by default (a bare
+       503 "high demand" surfaced as an immediate single-attempt
+       failure) — unlike the Anthropic SDK's own maxRetries. Set
+       httpOptions.retryOptions on the Gemini client; confirmed live
+       (3/3 successful attempts after the fix, vs. intermittent 503s
+       before it).
+  - End-to-end live verification (real Gemini API, real fixture repos):
+    correctly withheld a finding on a genuinely ambiguous case (a step-
+    definition helper returning an unasserted response — reasonable
+    given related-file context couldn't show whether the caller
+    asserts on it), and correctly flagged an unambiguous one (a fixed
+    `browser.pause(5000)` in a WDIO page object) with accurate severity,
+    line number, and a working suggested fix, for ~$0.0003.
+  10 new/updated tests (272 total): provider auto-detection priority and
+  error-when-none-set, the two real-key bugs (default model, retry
+  config), plus test-isolation fixes in two existing test files that had
+  been implicitly depending on no provider key being present in the
+  ambient shell (a real gap the ambient GEMINI_API_KEY exposed).

@@ -22,7 +22,7 @@ program
   .option('--repo <path>', 'repository root to review', process.cwd())
   .option('--base <ref>', 'base git ref to diff against', 'HEAD~1')
   .option('--head <ref>', 'head git ref to diff', 'HEAD')
-  .option('--provider <name>', 'AI provider: anthropic | openai | gemini')
+  .option('--provider <name>', 'AI provider: auto (default, picks whichever key is set — gemini first) | anthropic | openai | gemini')
   .option('--skill <id>', 'enable a specific skill (repeatable)', (value: string, previous: string[]) => [...previous, value], [] as string[])
   .option('--config <path>', 'path to .anubis.yml')
   .option('--json', 'output as JSON instead of a human-readable report')
