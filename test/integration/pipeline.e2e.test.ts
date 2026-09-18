@@ -81,17 +81,30 @@ function buildInitialContext(repoRoot: string): PipelineContext {
 
 describe('full review pipeline (end-to-end, mocked AI provider)', () => {
   let repoRoot: string;
-  const originalApiKey = process.env.ANTHROPIC_API_KEY;
+  const originalEnv = {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  };
 
   beforeEach(async () => {
     repoRoot = await setUpRepo();
+    // Only @anthropic-ai/sdk is mocked above — provider auto-detection prefers Gemini first
+    // (core/providers/provider.ts), so a real GEMINI_API_KEY in the ambient shell running these
+    // tests would otherwise get picked over the mocked Anthropic provider and make a real,
+    // unmocked network call. Force a clean, deterministic "only Anthropic is available" env.
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     process.env.ANTHROPIC_API_KEY = 'fake-key-for-tests';
     anthropicCreate.mockReset();
   });
 
   afterEach(() => {
     rmSync(repoRoot, { recursive: true, force: true });
-    process.env.ANTHROPIC_API_KEY = originalApiKey;
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   it('auto-detects the API skill, reviews the changed file, and produces a validated finding', async () => {

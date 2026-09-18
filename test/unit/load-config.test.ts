@@ -5,18 +5,33 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/cli/config/load-config.js';
 import { ConfigError } from '../../src/utils/errors.js';
 
+const PROVIDER_ENV_VARS = ['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'];
+
 describe('loadConfig', () => {
   let repoRoot: string;
+  const originalEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
     repoRoot = mkdtempSync(join(tmpdir(), 'anubis-config-test-'));
+    // Provider auto-detection reads real env vars, and the ambient shell running these tests
+    // may itself have one of these set (e.g. a developer's own GEMINI_API_KEY) — tests must not
+    // depend on that. Clear all three here; individual tests set back whichever they need.
+    for (const key of PROVIDER_ENV_VARS) {
+      originalEnv[key] = process.env[key];
+      delete process.env[key];
+    }
   });
 
   afterEach(() => {
     rmSync(repoRoot, { recursive: true, force: true });
+    for (const key of PROVIDER_ENV_VARS) {
+      if (originalEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalEnv[key];
+    }
   });
 
   it('returns schema defaults when no .anubis.yml exists', () => {
+    process.env.ANTHROPIC_API_KEY = 'fake-key';
     const config = loadConfig(repoRoot);
     expect(config.ai.provider).toBe('anthropic');
     expect(config.review.minimumConfidence).toBe(0.7);
@@ -87,5 +102,56 @@ skills:
   it('rejects an invalid ai.provider value', () => {
     writeFileSync(join(repoRoot, '.anubis.yml'), 'ai:\n  provider: not-a-real-provider\n');
     expect(() => loadConfig(repoRoot)).toThrow(ConfigError);
+  });
+
+  describe('ai.provider: "auto" resolution', () => {
+    it('is the default when nothing is configured', () => {
+      process.env.ANTHROPIC_API_KEY = 'fake-key';
+      // No explicit provider anywhere — the schema default is "auto", resolved against env vars.
+      const config = loadConfig(repoRoot);
+      expect(config.ai.provider).toBe('anthropic');
+    });
+
+    it('picks gemini first when multiple provider keys are set', () => {
+      process.env.GEMINI_API_KEY = 'fake-gemini-key';
+      process.env.ANTHROPIC_API_KEY = 'fake-anthropic-key';
+      process.env.OPENAI_API_KEY = 'fake-openai-key';
+      const config = loadConfig(repoRoot);
+      expect(config.ai.provider).toBe('gemini');
+    });
+
+    it('falls back to anthropic when gemini is not set but anthropic is', () => {
+      process.env.ANTHROPIC_API_KEY = 'fake-anthropic-key';
+      const config = loadConfig(repoRoot);
+      expect(config.ai.provider).toBe('anthropic');
+    });
+
+    it('falls back to openai when only openai is set', () => {
+      process.env.OPENAI_API_KEY = 'fake-openai-key';
+      const config = loadConfig(repoRoot);
+      expect(config.ai.provider).toBe('openai');
+    });
+
+    it('throws a clear ConfigError when auto-detection finds no provider key at all', () => {
+      expect(() => loadConfig(repoRoot)).toThrow(ConfigError);
+      expect(() => loadConfig(repoRoot)).toThrow(/no provider API key is set/);
+    });
+
+    it('an explicit .anubis.yml provider always wins over auto-detection, even if a different key is set', () => {
+      process.env.GEMINI_API_KEY = 'fake-gemini-key';
+      writeFileSync(join(repoRoot, '.anubis.yml'), 'ai:\n  provider: openai\n');
+      process.env.OPENAI_API_KEY = 'fake-openai-key';
+
+      const config = loadConfig(repoRoot);
+      expect(config.ai.provider).toBe('openai');
+    });
+
+    it('an explicit --provider auto CLI override re-triggers auto-detection even if .anubis.yml pins a provider', () => {
+      process.env.GEMINI_API_KEY = 'fake-gemini-key';
+      writeFileSync(join(repoRoot, '.anubis.yml'), 'ai:\n  provider: openai\n');
+
+      const config = loadConfig(repoRoot, { provider: 'auto' });
+      expect(config.ai.provider).toBe('gemini');
+    });
   });
 });

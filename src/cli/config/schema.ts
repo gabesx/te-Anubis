@@ -15,7 +15,10 @@ export const AnubisConfigFileSchema = z.object({
   version: z.number().default(1),
   ai: z
     .object({
-      provider: z.enum(['anthropic', 'openai', 'gemini']).default('anthropic'),
+      // "auto" (the default) picks whichever provider's API key is actually set in the
+      // environment, checked in PROVIDER_AUTO_DETECT_PRIORITY order (core/providers/provider.ts) —
+      // Gemini first. An explicit value here always wins over auto-detection.
+      provider: z.enum(['auto', 'anthropic', 'openai', 'gemini']).default('auto'),
       model: z.string().optional(),
     })
     .default({}),

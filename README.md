@@ -13,7 +13,8 @@ engine (see [`docs/architecture.md`](docs/architecture.md)).
 npm install
 npm run build
 
-export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=...   # or ANTHROPIC_API_KEY / OPENAI_API_KEY — whichever you have,
+                             # checked in that order (see "AI providers" below)
 node bin/anubis.js review --base HEAD~1 --head HEAD
 ```
 
@@ -41,6 +42,14 @@ Skills auto-detect from repo signals (`wdio.conf.*`, package dependencies, etc.)
 [`docs/writing-skills.md`](docs/writing-skills.md) to add your own. Configure via `.anubis.yml`
 at the repo root (see the one in this repo for every available option).
 
+### AI providers
+
+`ai.provider` defaults to `auto`: whichever of `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`,
+`OPENAI_API_KEY` is actually set gets used, checked in that order — set an explicit
+`--provider`/`.anubis.yml` value to pin one. Anthropic Claude is the most fully-implemented
+provider; OpenAI and Gemini are real, working implementations that are intentionally thinner
+(no streaming, less cost-accounting nuance).
+
 ## GitHub integration
 
 Three workflows in [`.github/workflows/`](.github/workflows/): `ci.yml` runs this repo's own test
@@ -48,7 +57,8 @@ suite/lint/typecheck/build on every PR (no secrets needed — everything's mocke
 posts inline + summary review comments on every PR to a repo that installs Anubis;
 `anubis-command.yml` handles `/anubis review [skill]` and `/anubis explain` PR comments (`/anubis fix`
 isn't wired up yet — see [`docs/architecture.md`](docs/architecture.md) for why). The latter two need
-an `ANTHROPIC_API_KEY` repo secret.
+at least one of `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` configured as a repo secret
+(provider auto-detection applies here too).
 
 ## Development
 

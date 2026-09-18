@@ -10,7 +10,7 @@ export interface ReviewCommandOptions {
   repo?: string;
   base?: string;
   head?: string;
-  provider?: 'anthropic' | 'openai' | 'gemini';
+  provider?: 'auto' | 'anthropic' | 'openai' | 'gemini';
   skill?: string[];
   config?: string;
   json?: boolean;

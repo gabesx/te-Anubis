@@ -50,6 +50,25 @@ Anthropic Claude is the fully-implemented default; OpenAI and Gemini are real, w
 intentionally thin (no streaming, default SDK retry behavior, a one-time "MVP-minimal" warning on
 first use). Switching provider is a config change, never a review-logic change.
 
+**`ai.provider` defaults to `"auto"`**, not a fixed provider: `cli/config/load-config.ts` resolves
+it by checking `PROVIDER_AUTO_DETECT_PRIORITY` (`core/providers/provider.ts` — Gemini, then
+Anthropic, then OpenAI) against which of `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
+is actually set, and throws a clear `ConfigError` naming all three if none is. An explicit
+`ai.provider` in `.anubis.yml` or `--provider` always wins over auto-detection; `--provider auto`
+forces re-detection even when the config file pins something else. This resolution happens once,
+in the CLI/config layer — `core/` (including `AnubisConfig.ai.provider`'s type) never sees `"auto"`
+as a value, only a concrete resolved provider name.
+
+**Model staleness is real, not theoretical** — a live smoke test against the actual Gemini API
+(2026-09-18) found the previous default, `gemini-1.5-pro`, fully retired (404). Both Anthropic's
+and Gemini's default models now point at the current generation
+(`claude-sonnet-5`, `gemini-flash-latest` — the latter a Google-maintained alias specifically to
+avoid repeating this). The same smoke test also found `@google/genai`, unlike the Anthropic SDK,
+does **not** retry transient errors (a bare 5xx surfaced as an immediate failure) unless
+`httpOptions.retryOptions` is explicitly set on the client — `gemini-provider.ts` now sets it.
+`pricing.ts` keeps superseded model entries around so cost estimation stays accurate for anyone
+still pinning an old model explicitly via `ai.model`.
+
 ## Skill Engine
 
 `skills/<id>/SKILL.md` = YAML frontmatter (validated against a zod schema) + a markdown body

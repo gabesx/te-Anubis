@@ -3,10 +3,11 @@ import { join } from 'node:path';
 import yaml from 'js-yaml';
 import { ConfigError } from '../../utils/errors.js';
 import type { AnubisConfig } from '../../core/types/config.js';
+import { PROVIDER_AUTO_DETECT_PRIORITY, PROVIDER_ENV_VARS } from '../../core/providers/provider.js';
 import { AnubisConfigFileSchema, type AnubisConfigFile, type AnubisConfigFileInput } from './schema.js';
 
 export interface CliOverrides {
-  provider?: 'anthropic' | 'openai' | 'gemini';
+  provider?: 'auto' | 'anthropic' | 'openai' | 'gemini';
   skills?: string[];
   /** Forces `skills.auto_detect` off — used by `/anubis review <skill>` to scope strictly to that skill
    * rather than the usual union-with-auto-detected-skills behavior. */
@@ -47,11 +48,27 @@ function readYamlConfig(repoRoot: string, configPath?: string): AnubisConfigFile
   return parsed as AnubisConfigFileInput;
 }
 
+/**
+ * Resolves "auto" to whichever provider's API key is actually set, checked in
+ * PROVIDER_AUTO_DETECT_PRIORITY order (Gemini first). An explicitly-configured
+ * provider always wins — this only kicks in when nothing was configured at all.
+ */
+function resolveProvider(configured: AnubisConfigFile['ai']['provider']): AnubisConfig['ai']['provider'] {
+  if (configured !== 'auto') return configured;
+
+  for (const candidate of PROVIDER_AUTO_DETECT_PRIORITY) {
+    if (process.env[PROVIDER_ENV_VARS[candidate]]) return candidate;
+  }
+
+  const envVarList = PROVIDER_AUTO_DETECT_PRIORITY.map((p) => PROVIDER_ENV_VARS[p]).join(', ');
+  throw new ConfigError(`ai.provider is "auto" but no provider API key is set. Set one of: ${envVarList}.`);
+}
+
 /** Maps the on-disk snake_case file shape to core's camelCase runtime shape. */
 function toCoreConfig(file: AnubisConfigFile): AnubisConfig {
   return {
     version: file.version,
-    ai: { provider: file.ai.provider, model: file.ai.model },
+    ai: { provider: resolveProvider(file.ai.provider), model: file.ai.model },
     review: {
       minimumConfidence: file.review.minimum_confidence,
       maxComments: file.review.max_comments,

@@ -1,7 +1,9 @@
 version: 1
 
 ai:
-  provider: anthropic
+  # "auto" picks whichever provider API key is actually set (GEMINI_API_KEY, then
+  # ANTHROPIC_API_KEY, then OPENAI_API_KEY) — set an explicit value here to pin one.
+  provider: auto
 
 review:
   minimum_confidence: 0.7

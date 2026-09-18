@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '../../src/utils/errors.js';
 
 const anthropicCreate = vi.fn();
+const anthropicConstructor = vi.fn();
 const openaiCreate = vi.fn();
 const geminiGenerateContent = vi.fn();
+const geminiConstructor = vi.fn();
 
 vi.mock('@anthropic-ai/sdk', () => ({
   default: class MockAnthropic {
     messages = { create: anthropicCreate };
+    constructor(options: unknown) {
+      anthropicConstructor(options);
+    }
   },
 }));
 
@@ -20,6 +25,9 @@ vi.mock('openai', () => ({
 vi.mock('@google/genai', () => ({
   GoogleGenAI: class MockGoogleGenAI {
     models = { generateContent: geminiGenerateContent };
+    constructor(options: unknown) {
+      geminiConstructor(options);
+    }
   },
 }));
 
@@ -65,6 +73,13 @@ describe('AnthropicProvider', () => {
     const large = provider.estimateCost({ inputTokens: 2_000_000, outputTokens: 0 });
     expect(large).toBeCloseTo(small * 2, 5);
     expect(small).toBeGreaterThan(0);
+  });
+
+  it('defaults to the current Claude 5 model, not a superseded one, when no model is given', async () => {
+    anthropicCreate.mockResolvedValue({ content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 }, model: 'claude-sonnet-5' });
+    const provider = new AnthropicProvider('fake-key');
+    await provider.complete(SAMPLE_REQUEST);
+    expect(anthropicCreate.mock.calls[0]?.[0]?.model).toBe('claude-sonnet-5');
   });
 });
 
@@ -125,5 +140,18 @@ describe('GeminiProvider', () => {
     geminiGenerateContent.mockRejectedValue(new Error('boom'));
     const provider = new GeminiProvider('fake-key');
     await expect(provider.complete(SAMPLE_REQUEST)).rejects.toThrow(ProviderError);
+  });
+
+  it('defaults to the "-latest" alias, not a pinned version that can be retired, when no model is given', async () => {
+    geminiGenerateContent.mockResolvedValue({ text: 'ok', usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 } });
+    const provider = new GeminiProvider('fake-key');
+    await provider.complete(SAMPLE_REQUEST);
+    expect(geminiGenerateContent.mock.calls[0]?.[0]?.model).toBe('gemini-flash-latest');
+  });
+
+  it('configures SDK-level HTTP retries — a live smoke test found a bare 503 otherwise fails on the first attempt', () => {
+    geminiConstructor.mockClear();
+    new GeminiProvider('fake-key');
+    expect(geminiConstructor).toHaveBeenCalledWith(expect.objectContaining({ httpOptions: { retryOptions: {} } }));
   });
 });
