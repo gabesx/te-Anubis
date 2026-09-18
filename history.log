@@ -147,7 +147,7 @@ for the current-state design and .claude plan history for the full phase plan.
   available — revisit then, not before, since tuning noise-reduction
   without real model output would just be guessing.
 
-2026-09-18 10:38 UTC+7 | f602f63 (pre-merge branch commit; see PR for the merge commit on main) | Provider auto-detection (Gemini first) + real-key bug fixes; first live dogfooding
+2026-09-18 10:38 UTC+7 | 8390a65 (PR #1, merged to main) | Provider auto-detection (Gemini first) + real-key bug fixes; first live dogfooding
   A GEMINI_API_KEY turned out to already be set in the shell (user request:
   "add the capability to use gemini key first"). Added provider
   auto-detection instead of a hardcoded default:
@@ -186,3 +186,35 @@ for the current-state design and .claude plan history for the full phase plan.
   config), plus test-isolation fixes in two existing test files that had
   been implicitly depending on no provider key being present in the
   ambient shell (a real gap the ambient GEMINI_API_KEY exposed).
+
+  Also switched to a branch -> PR -> merge workflow for this and all
+  future changes, per explicit user preference (previously every commit
+  went straight to main). This change went through PR #1.
+
+2026-09-18 10:53 UTC+7 | aef66be (PR TBD) | First real, live GitHub Action review (production conditions, not a fixture)
+  Opening PR #1 triggered anubis-review.yml against itself for the first
+  time. It failed initially, correctly and as designed: no provider
+  secret had ever been configured on this repo, and for a same-repo
+  (non-fork) PR the code deliberately rethrows that error rather than
+  swallowing it (the fork-only graceful-degradation path in
+  github-review.ts intentionally does not apply here). Not a bug in the
+  PR being reviewed — a pre-existing repo-configuration gap.
+
+  Configured GEMINI_API_KEY as a real repo secret (`gh secret set`,
+  piped via stdin, never placed in shell history/argv) and re-ran the
+  job. It completed successfully end to end on GitHub's real
+  infrastructure: checked out the PR, built Anubis, ran the full review
+  pipeline with live Gemini calls, ran eslint/tsc validation, and posted
+  an actual summary comment as `github-actions[bot]` on PR #1 — 18 files
+  analyzed, 0 findings, eslint/tsc both passing, provider correctly
+  reported as gemini (gemini-flash-latest). PR #1 was merged with this
+  comment intact as a historical record.
+
+  This is the first time any part of TE-Anubis has run in genuinely
+  production conditions (real GitHub Actions runner, real secret, real
+  API billing, a real PR) rather than a local fixture or a mocked test.
+  Phase 7 (noise-reduction tuning) is no longer blocked on "no API key
+  exists" — a real, working GEMINI_API_KEY is now configured on this
+  repo — though tuning itself still needs iteration over more real PRs
+  before drawing conclusions from it, not a one-shot "0 findings on a
+  clean PR" result.
